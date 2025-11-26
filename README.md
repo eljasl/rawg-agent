@@ -20,6 +20,8 @@ npm run dev
 - **Interactive Widgets**: Expandable data tables and calculation breakdowns
 - **Streaming Responses**: Real-time updates via Server-Sent Events
 
+_Psst! Can you find the secret test?_
+
 ### Example Queries
 
 ```

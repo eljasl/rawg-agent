@@ -1,12 +1,67 @@
-// Agent Orchestrator - "New MCP" Structured Plan Pattern
-// The LLM outputs a structured JSON plan, which we execute step-by-step.
-// After execution, the LLM generates a free-form answer based on the results.
+/**
+ * =============================================================================
+ * AGENT ORCHESTRATOR - Plan-First Execution Pattern
+ * =============================================================================
+ * 
+ * This module implements a "Plan-First" approach to tool orchestration, which
+ * differs significantly from the standard Model Context Protocol (MCP) pattern.
+ * 
+ * ## Standard MCP vs Plan-First
+ * 
+ * In standard MCP, the LLM makes one tool call at a time, evaluating results
+ * after each call before deciding the next action:
+ * 
+ *   User Query → LLM → Tool 1 → LLM → Tool 2 → LLM → ... → Answer
+ *   (N tool calls = N+1 LLM calls)
+ * 
+ * In our Plan-First approach, the LLM generates a complete execution plan
+ * upfront, then we execute ALL actions without LLM intervention:
+ * 
+ *   User Query → LLM (Plan) → [Tool 1, Tool 2, Tool 3] → LLM (Review) → LLM (Answer)
+ *   (N tool calls = 2-3 LLM calls total)
+ * 
+ * ## Benefits
+ * - Lower latency (fewer round-trips to LLM)
+ * - Lower cost (LLM calls are expensive)
+ * - More predictable (plan is visible upfront)
+ * - Better transparency (users can see the full plan before execution)
+ * 
+ * ## Trade-offs
+ * - Less adaptive during execution (can't change strategy mid-stream)
+ * - Mitigated by the "review" step which can trigger re-planning if needed
+ * 
+ * ## Architecture Flow
+ * 1. PLAN     - LLM generates a JSON execution plan from the user query
+ * 2. VALIDATE - Check that all action references and structure are valid
+ * 3. EXECUTE  - Run all fetch/calculate/compare actions sequentially
+ * 4. REVIEW   - LLM checks if results are satisfactory (can trigger re-plan)
+ * 5. ANSWER   - LLM generates a natural language response from the results
+ * 
+ * =============================================================================
+ */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { fetchGameData, FetchGameDataInput, PLATFORMS, GENRES, Game } from '../tools/rawg';
 import { executeCalculation, CalculationInput, extractField } from '../tools/calculate';
 
-// Step types for tracking the agent's work
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Represents a single step in the agent's processing pipeline.
+ * Steps are streamed to the frontend in real-time to show progress.
+ * 
+ * Step types:
+ * - 'thinking'          - Agent is analyzing or processing
+ * - 'plan'              - A new execution plan has been created
+ * - 'tool_call'         - About to execute a tool (fetch, calculate, compare)
+ * - 'tool_result'       - Tool execution completed with results
+ * - 'review'            - Reviewing execution results
+ * - 'generating_answer' - LLM is generating the final response
+ * - 'answer'            - Final answer is ready
+ * - 'error'             - An error occurred
+ */
 export interface Step {
   id: string;
   type: 'thinking' | 'plan' | 'tool_call' | 'tool_result' | 'generating_answer' | 'answer' | 'error' | 'review';
@@ -16,48 +71,111 @@ export interface Step {
   timestamp: number;
 }
 
+/**
+ * The final response from the agent, containing the answer and all processing steps.
+ */
 export interface AgentResponse {
   answer: string;
   steps: Step[];
 }
 
-// Generate unique step ID
+/**
+ * Generates a unique identifier for each step.
+ * Uses a random base-36 string for compact, URL-safe IDs.
+ */
 function generateStepId(): string {
   return Math.random().toString(36).substring(2, 9);
 }
 
-// Action types for the structured plan (no more 'answer' action)
+// =============================================================================
+// ACTION DEFINITIONS
+// =============================================================================
+// 
+// The LLM generates a plan consisting of these action types. Each action has:
+// - A unique 'id' that can be referenced by subsequent actions
+// - A 'description' shown to users during execution
+// - Action-specific parameters
+//
+// IMPORTANT: Calculate and Compare actions can ONLY reference Fetch action IDs
+// as their 'source'. This is validated before execution to prevent errors.
+// =============================================================================
+
+/**
+ * FETCH ACTION
+ * Retrieves game data from the RAWG API with various filters.
+ * This is the only action that generates new data - all other actions
+ * operate on data retrieved by fetch actions.
+ */
 interface FetchAction {
   action: 'fetch';
-  id: string;
-  params: FetchGameDataInput;
-  description: string;
+  id: string;                    // Unique identifier for this fetch result
+  params: FetchGameDataInput;    // RAWG API query parameters
+  description: string;           // Human-readable description
 }
 
+/**
+ * CALCULATE ACTION
+ * Performs a statistical operation on data from a previous fetch action.
+ * The 'source' field MUST reference a fetch action's ID, not another calculate action.
+ */
 interface CalculateAction {
   action: 'calculate';
-  id: string;
-  operation: 'average' | 'sum' | 'count' | 'min' | 'max';
-  source: string;  // ID of previous fetch action
-  field: 'metacritic' | 'rating' | 'ratings_count';
-  description: string;
+  id: string;                                                  // Unique identifier for this result
+  operation: 'average' | 'sum' | 'count' | 'min' | 'max';      // Statistical operation
+  source: string;                                              // ID of the fetch action to get data from
+  field: 'metacritic' | 'rating' | 'ratings_count';            // Which game field to extract
+  description: string;                                         // Human-readable description
 }
 
+/**
+ * COMPARE ACTION
+ * Compares metrics across multiple groups of data.
+ * Each group references a fetch action and specifies which field to compare.
+ * Returns averages for each group and identifies the "winner" (highest value).
+ */
 interface CompareAction {
   action: 'compare';
   id: string;
-  groups: { name: string; source: string; field: 'metacritic' | 'rating' | 'count' }[];
+  groups: { 
+    name: string;                                    // Display name for this group
+    source: string;                                  // ID of the fetch action
+    field: 'metacritic' | 'rating' | 'count';        // Field to compare (count uses total results)
+  }[];
   description: string;
 }
 
+/**
+ * Union type of all possible plan actions.
+ */
 type PlanAction = FetchAction | CalculateAction | CompareAction;
 
+/**
+ * The complete execution plan generated by the LLM.
+ * Contains reasoning (for transparency) and an ordered list of actions.
+ */
 interface ExecutionPlan {
-  reasoning: string;
-  actions: PlanAction[];
+  reasoning: string;      // LLM's explanation of the approach
+  actions: PlanAction[];  // Ordered list of actions to execute
 }
 
-// System prompt for structured plan generation
+// =============================================================================
+// SYSTEM PROMPT
+// =============================================================================
+// 
+// This is the "brain" of the agent - a carefully crafted prompt that teaches
+// the LLM how to generate valid execution plans. Key components:
+// 
+// 1. ROLE DEFINITION     - Establishes the agent's identity and capabilities
+// 2. AVAILABLE RESOURCES - Lists platforms, genres the agent knows about
+// 3. PLAN FORMAT         - Specifies the exact JSON structure required
+// 4. ACTION SCHEMAS      - Detailed specs for each action type
+// 5. EXAMPLES            - Concrete examples showing how to handle common queries
+// 6. RULES               - Critical constraints (e.g., source references)
+//
+// The prompt is injected with actual platform/genre lists from the RAWG tool
+// to keep the LLM informed about valid filter values.
+// =============================================================================
+
 const SYSTEM_PROMPT = `You are a video game data analyst. You answer questions by creating a structured execution plan.
 
 ## Available Data Sources
@@ -320,19 +438,47 @@ User: "How many Zelda games are on Nintendo Switch?"
 
 Now respond to the user's question with ONLY a JSON plan. Do NOT include an "answer" action - I will ask you to write the answer separately after the plan is executed.`;
 
-// Streaming event callback type
+// =============================================================================
+// STREAMING INFRASTRUCTURE
+// =============================================================================
+
+/**
+ * Callback function type for streaming events to the client.
+ * Used by runAgentStreaming() to send real-time updates via Server-Sent Events.
+ * 
+ * Event types:
+ * - 'step'   - A processing step occurred (planning, fetching, calculating, etc.)
+ * - 'answer' - The final answer is ready, includes calculation widgets
+ * - 'error'  - An error occurred during processing
+ */
 export type StreamCallback = (event: {
   type: 'step' | 'answer' | 'error';
   data: any;
 }) => Promise<void>;
 
-// Parse LLM response to extract JSON
+// =============================================================================
+// LLM RESPONSE PARSING
+// =============================================================================
+
+/**
+ * Extracts a JSON execution plan from the LLM's response.
+ * 
+ * LLMs sometimes wrap JSON in markdown code blocks or include extra text,
+ * so we try multiple extraction strategies:
+ * 
+ * 1. Direct JSON.parse() - Works when response is pure JSON
+ * 2. Extract from ```json ... ``` code blocks - Common LLM behavior
+ * 3. Find any JSON object in the response - Fallback for mixed responses
+ * 
+ * @param response - Raw text response from the LLM
+ * @returns Parsed ExecutionPlan or null if extraction fails
+ */
 function parseJsonResponse(response: string): ExecutionPlan | null {
-  // Try to parse directly
+  // Strategy 1: Try to parse the response directly as JSON
   try {
     return JSON.parse(response);
   } catch {
-    // Try to extract JSON from markdown code block
+    // Strategy 2: Extract JSON from markdown code block (```json ... ```)
     const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
       try {
@@ -342,7 +488,7 @@ function parseJsonResponse(response: string): ExecutionPlan | null {
       }
     }
     
-    // Try to find JSON object in the response
+    // Strategy 3: Find any JSON object pattern in the response
     const objectMatch = response.match(/\{[\s\S]*\}/);
     if (objectMatch) {
       try {
@@ -355,11 +501,34 @@ function parseJsonResponse(response: string): ExecutionPlan | null {
   return null;
 }
 
-// Validate the execution plan before running it
+// =============================================================================
+// PLAN VALIDATION
+// =============================================================================
+
+/**
+ * Validates the execution plan before running it.
+ * 
+ * This is a critical safety check that catches common LLM mistakes:
+ * 
+ * 1. Missing or malformed actions array
+ * 2. Calculate/Compare actions referencing non-existent fetch actions
+ * 3. Calculate actions trying to use other calculate action IDs as sources
+ * 
+ * The validation uses a two-pass approach:
+ * - First pass: Collect all fetch action IDs
+ * - Second pass: Verify all source references point to valid fetch IDs
+ * 
+ * Why is this needed? LLMs sometimes hallucinate action IDs or try to chain
+ * calculate actions together (which isn't supported). This catches those
+ * errors early with helpful messages.
+ * 
+ * @param plan - The execution plan to validate
+ * @returns Object with 'valid' boolean and array of error messages
+ */
 function validatePlan(plan: ExecutionPlan): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   
-  // Check if plan and actions exist
+  // Basic structure check - plan must have an actions array
   if (!plan || !plan.actions || !Array.isArray(plan.actions)) {
     return {
       valid: false,
@@ -367,19 +536,20 @@ function validatePlan(plan: ExecutionPlan): { valid: boolean; errors: string[] }
     };
   }
 
+  // FIRST PASS: Build a set of all valid fetch action IDs
+  // These are the only valid sources for calculate/compare actions
   const fetchActionIds = new Set<string>();
   
-  // First pass: collect all fetch action IDs
   for (const action of plan.actions) {
     if (action.action === 'fetch') {
       fetchActionIds.add(action.id);
     }
   }
   
-  // Second pass: validate calculate and compare actions
+  // SECOND PASS: Validate that all source references are valid
   for (const action of plan.actions) {
     if (action.action === 'calculate') {
-      // Check if source references a fetch action
+      // Calculate actions must reference a fetch action as their source
       if (!fetchActionIds.has(action.source)) {
         errors.push(
           `Calculate action "${action.id}" has invalid source "${action.source}". ` +
@@ -387,7 +557,7 @@ function validatePlan(plan: ExecutionPlan): { valid: boolean; errors: string[] }
         );
       }
     } else if (action.action === 'compare') {
-      // Check if all group sources reference fetch actions
+      // Each group in a compare action must reference a valid fetch action
       for (const group of action.groups) {
         if (!fetchActionIds.has(group.source)) {
           errors.push(
@@ -405,7 +575,29 @@ function validatePlan(plan: ExecutionPlan): { valid: boolean; errors: string[] }
   };
 }
 
-// Format results for the LLM to generate an answer
+// =============================================================================
+// RESULT FORMATTING FOR LLM
+// =============================================================================
+
+/**
+ * Formats execution results into a structured summary for the LLM.
+ * 
+ * This creates a markdown-formatted document that the LLM uses to:
+ * 1. Understand what data was retrieved
+ * 2. See calculation/comparison results
+ * 3. Generate a natural language answer
+ * 
+ * The formatting is optimized for LLM comprehension:
+ * - Clear section headers for each action
+ * - Emphasis on key numbers (bold for important values)
+ * - Sample data to provide context
+ * - Special handling for counting questions (emphasizes total count)
+ * 
+ * @param userQuery - The original user question
+ * @param results - Map of action IDs to their execution results
+ * @param plan - The execution plan that was run
+ * @returns Formatted markdown string for LLM consumption
+ */
 function formatResultsForLLM(
   userQuery: string,
   results: Record<string, any>,
@@ -413,16 +605,19 @@ function formatResultsForLLM(
 ): string {
   let summary = `## Original Question\n${userQuery}\n\n## Execution Results\n\n`;
   
-  // Check if this is a counting question
+  // Detect counting questions to emphasize the total count in results
+  // This helps the LLM understand that the 'count' field is the answer
   const isCountingQuestion = /how many|count|number of|total/i.test(userQuery);
   
+  // Format each action's results in sequence
   for (const action of plan.actions) {
     const result = results[action.id];
     
     switch (action.action) {
       case 'fetch':
         summary += `### ${action.description}\n`;
-        // Emphasize total count for counting questions
+        // For counting questions, emphasize that the count is the total in the database
+        // (not just the number of results returned on this page)
         if (isCountingQuestion) {
           summary += `- **TOTAL MATCHING GAMES IN DATABASE: ${result.count}** (This is the answer to "how many")\n`;
         } else {
@@ -432,6 +627,7 @@ function formatResultsForLLM(
         if (result.query_params) {
           summary += `- Search parameters used: ${JSON.stringify(result.query_params)}\n`;
         }
+        // Include a sample of games for context
         if (result.games && result.games.length > 0) {
           summary += `- Sample of matching games:\n`;
           result.games.slice(0, 10).forEach((g: any) => {
@@ -467,17 +663,52 @@ function formatResultsForLLM(
   return summary;
 }
 
-// Execute the plan (no longer handles 'answer' action)
+// =============================================================================
+// PLAN EXECUTION ENGINE
+// =============================================================================
+
+/**
+ * Executes all actions in the plan sequentially.
+ * 
+ * This is the core of the Plan-First pattern - we run all actions without
+ * consulting the LLM between steps. Each action's result is stored in a
+ * results map, keyed by the action's ID.
+ * 
+ * For each action type:
+ * - FETCH: Calls RAWG API, stores games array + metadata
+ * - CALCULATE: Runs statistical operation on fetch results
+ * - COMPARE: Compares metrics across multiple fetch results
+ * 
+ * Widget Data:
+ * In addition to the raw results, we also create "_widget" entries containing
+ * formatted data for the frontend's interactive displays. These include:
+ * - Calculation breakdowns with formula and input values
+ * - Game data tables for user inspection
+ * 
+ * @param plan - The validated execution plan
+ * @param rawgApiKey - API key for RAWG service
+ * @param onStep - Callback to report progress (for streaming)
+ * @returns Map of action IDs to their results
+ */
 async function executePlan(
   plan: ExecutionPlan,
   rawgApiKey: string,
   onStep: (step: Step) => Promise<void>
 ): Promise<Record<string, any>> {
+  // Results map: action.id -> result data
+  // Also stores action.id + "_widget" -> frontend display data
   const results: Record<string, any> = {};
   
+  // Process each action in order
+  // Note: Actions are executed sequentially because later actions may depend
+  // on earlier fetch results (e.g., calculate depends on a prior fetch)
   for (const action of plan.actions) {
     switch (action.action) {
+      // =========================================
+      // FETCH ACTION - Retrieve games from RAWG
+      // =========================================
       case 'fetch': {
+        // Notify frontend that we're starting a fetch
         await onStep({
           id: generateStepId(),
           type: 'tool_call',
@@ -487,7 +718,11 @@ async function executePlan(
           timestamp: Date.now()
         });
         
+        // Call the RAWG API tool
         const fetchResult = await fetchGameData(action.params, rawgApiKey);
+        
+        // Store the raw result for use by subsequent actions
+        // Note: 'count' is the TOTAL matches in the database, 'games' is this page
         results[action.id] = {
           games: fetchResult.games,
           count: fetchResult.count,
@@ -495,7 +730,8 @@ async function executePlan(
           query_params: fetchResult.query_params
         };
         
-        // Store data widget for the frontend (allows users to inspect fetched data)
+        // Store widget data for the frontend's interactive data tables
+        // This is separate from the raw result to include display-specific formatting
         results[`${action.id}_widget`] = {
           type: 'data',
           description: action.description,
@@ -511,6 +747,7 @@ async function executePlan(
           }))
         };
         
+        // Notify frontend of successful fetch with summary
         await onStep({
           id: generateStepId(),
           type: 'tool_result',
@@ -532,7 +769,11 @@ async function executePlan(
         break;
       }
       
+      // =========================================
+      // CALCULATE ACTION - Statistical operations
+      // =========================================
       case 'calculate': {
+        // Notify frontend that we're starting a calculation
         await onStep({
           id: generateStepId(),
           type: 'tool_call',
@@ -542,6 +783,8 @@ async function executePlan(
           timestamp: Date.now()
         });
         
+        // Look up the source fetch result
+        // This should have been validated, but we check again for safety
         const sourceData = results[action.source];
         if (!sourceData || !sourceData.games) {
           const availableSources = Object.keys(results).filter(k => !k.endsWith('_widget'));
@@ -552,15 +795,22 @@ async function executePlan(
           );
         }
         
+        // Extract the numeric values from the games array
+        // e.g., get all 'metacritic' scores or all 'rating' values
         const numbers = extractField(sourceData.games, action.field);
+        
+        // Execute the statistical operation
         const calcInput: CalculationInput = {
           operation: action.operation,
           data: numbers
         };
         const calcResult = executeCalculation(calcInput);
+        
+        // Store the raw result (just the number)
         results[action.id] = calcResult.result;
         
-        // Store calculation widget data for the frontend
+        // Store widget data for the frontend's calculation breakdown display
+        // Includes the formula, input values, and source games for transparency
         results[`${action.id}_widget`] = {
           type: 'calculation',
           operation: action.operation,
@@ -578,6 +828,7 @@ async function executePlan(
           }))
         };
         
+        // Notify frontend of successful calculation
         await onStep({
           id: generateStepId(),
           type: 'tool_result',
@@ -595,7 +846,11 @@ async function executePlan(
         break;
       }
       
+      // =========================================
+      // COMPARE ACTION - Multi-group comparison
+      // =========================================
       case 'compare': {
+        // Notify frontend that we're starting a comparison
         await onStep({
           id: generateStepId(),
           type: 'tool_call',
@@ -605,9 +860,14 @@ async function executePlan(
           timestamp: Date.now()
         });
         
+        // Build data structures for comparison
+        // groupData: maps group name -> array of numeric values
+        // groupGames: maps group name -> array of game objects (for widgets)
         const groupData: Record<string, number[]> = {};
         const groupGames: Record<string, any[]> = {};
+        
         for (const group of action.groups) {
+          // Look up the source fetch result for this group
           const sourceData = results[group.source];
           if (!sourceData || !sourceData.games) {
             const availableSources = Object.keys(results).filter(k => !k.endsWith('_widget'));
@@ -617,12 +877,18 @@ async function executePlan(
               `Available sources: ${availableSources.join(', ') || 'none'}`
             );
           }
+          
+          // Handle 'count' field specially - it uses the total database count,
+          // not a field from individual games
           if (group.field === 'count') {
-            // Special handling for counting total results
+            // Use the total count from the API response (how many games match)
             groupData[group.name] = [sourceData.count];
           } else {
+            // Extract the field values from all games
             groupData[group.name] = extractField(sourceData.games, group.field);
           }
+          
+          // Store game data for the frontend widget
           groupGames[group.name] = sourceData.games.map((g: Game) => ({
             name: g.name,
             [group.field]: g[group.field as keyof Game],
@@ -632,14 +898,17 @@ async function executePlan(
           }));
         }
         
+        // Execute the comparison (calculates averages, finds winner)
         const compareInput: CalculationInput = {
           operation: 'compare',
           data: groupData
         };
         const compareResult = executeCalculation(compareInput);
+        
+        // Store the raw result (averages per group)
         results[action.id] = compareResult.result;
         
-        // Store comparison widget data for the frontend
+        // Store widget data for the frontend's comparison display
         results[`${action.id}_widget`] = {
           type: 'comparison',
           groups: Object.keys(groupData),
@@ -650,6 +919,7 @@ async function executePlan(
           group_games: groupGames
         };
         
+        // Notify frontend of successful comparison
         await onStep({
           id: generateStepId(),
           type: 'tool_result',
@@ -671,14 +941,41 @@ async function executePlan(
   return results;
 }
 
-// Review response interface
+// =============================================================================
+// RESULT REVIEW PHASE
+// =============================================================================
+
+/**
+ * Response from the review LLM call.
+ * If results are unsatisfactory, may include a new plan to try.
+ */
 interface ReviewResult {
-  satisfactory: boolean;
-  reasoning: string;
-  new_plan?: ExecutionPlan;
+  satisfactory: boolean;     // Are the results good enough to answer?
+  reasoning: string;         // Explanation of the assessment
+  new_plan?: ExecutionPlan;  // Optional: A revised plan if results are bad
 }
 
-// Review execution results and potentially generate a new plan
+/**
+ * Reviews execution results and potentially generates a new plan.
+ * 
+ * This is the "adaptability" mechanism in our Plan-First architecture.
+ * While we don't consult the LLM between individual tool calls, we do
+ * ask it to review the overall results before generating an answer.
+ * 
+ * Common reasons for revision:
+ * - 0 games found (search too restrictive)
+ * - Missing Metacritic data (should switch to 'rating' field)
+ * - Date range too narrow (should widen it)
+ * 
+ * The LLM can suggest a new plan which will be validated and executed,
+ * replacing the original results.
+ * 
+ * @param genAI - Google Generative AI instance
+ * @param userQuery - Original user question
+ * @param results - Execution results from the first plan
+ * @param plan - The plan that was executed
+ * @returns ReviewResult with satisfactory flag and optional new plan
+ */
 async function reviewExecutionResults(
   genAI: GoogleGenerativeAI,
   userQuery: string,
@@ -688,11 +985,12 @@ async function reviewExecutionResults(
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     generationConfig: {
-      temperature: 0.1,
+      temperature: 0.1,  // Low temperature for consistent evaluation
       responseMimeType: 'application/json'
     }
   });
 
+  // Format the results for the LLM to review
   const resultsSummary = formatResultsForLLM(userQuery, results, plan);
 
   const prompt = `You are a video game data analyst reviewing the results of a data fetch.
@@ -718,6 +1016,7 @@ Return ONLY a valid JSON object:
   const result = await model.generateContent(prompt);
   const responseText = result.response.text();
   
+  // Parse the review response (with same fallback strategies as plan parsing)
   try {
     return JSON.parse(responseText);
   } catch {
@@ -726,7 +1025,7 @@ Return ONLY a valid JSON object:
       try {
         return JSON.parse(jsonMatch[1]);
       } catch {
-        // Fallback
+        // Fallback to next strategy
       }
     }
     const objectMatch = responseText.match(/\{[\s\S]*\}/);
@@ -734,14 +1033,36 @@ Return ONLY a valid JSON object:
       try {
         return JSON.parse(objectMatch[0]);
       } catch {
-        // Fallback
+        // Fallback to default
       }
     }
+    // If parsing fails entirely, assume results are okay and proceed
     return { satisfactory: true, reasoning: "Failed to parse review response, proceeding with current results." };
   }
 }
 
-// Generate final answer using LLM
+// =============================================================================
+// ANSWER GENERATION
+// =============================================================================
+
+/**
+ * Generates a natural language answer from the execution results.
+ * 
+ * This is the final LLM call in the pipeline. It takes the structured
+ * execution results and produces a human-friendly response.
+ * 
+ * Key formatting instructions for the LLM:
+ * - Use bold for important numbers
+ * - Be conversational but informative
+ * - Handle edge cases (0 results, missing data) gracefully
+ * - No JSON or technical details in the response
+ * 
+ * @param genAI - Google Generative AI instance
+ * @param userQuery - Original user question
+ * @param results - All execution results
+ * @param plan - The executed plan
+ * @returns Natural language answer string
+ */
 async function generateFinalAnswer(
   genAI: GoogleGenerativeAI,
   userQuery: string,
@@ -751,10 +1072,11 @@ async function generateFinalAnswer(
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     generationConfig: {
-      temperature: 0.3, // Slightly higher for more natural language
+      temperature: 0.3,  // Slightly higher for more natural, varied language
     }
   });
   
+  // Prepare the context for answer generation
   const resultsSummary = formatResultsForLLM(userQuery, results, plan);
   
   const prompt = `Based on the following data analysis results, write a clear, helpful answer to the user's question.
@@ -775,23 +1097,52 @@ Write your answer now:`;
   return result.response.text();
 }
 
-// Main orchestrator function (non-streaming)
+// =============================================================================
+// MAIN ORCHESTRATOR FUNCTIONS
+// =============================================================================
+
+/**
+ * Main orchestrator function (non-streaming version).
+ * 
+ * This is the entry point for synchronous chat requests (POST /api/chat).
+ * It executes the complete Plan-Execute-Review-Answer pipeline and returns
+ * the final result with all processing steps.
+ * 
+ * Pipeline:
+ * 1. Initialize Gemini with system prompt
+ * 2. Generate execution plan from user query
+ * 3. Validate plan structure and references
+ * 4. Execute all actions sequentially
+ * 5. Review results (may trigger re-planning)
+ * 6. Generate natural language answer
+ * 7. Return answer + all steps + widget data
+ * 
+ * @param userQuery - The user's question about video games
+ * @param geminiApiKey - Google Gemini API key
+ * @param rawgApiKey - RAWG API key for game data
+ * @returns AgentResponse with answer and all processing steps
+ */
 export async function runAgent(
   userQuery: string,
   geminiApiKey: string,
   rawgApiKey: string
 ): Promise<AgentResponse> {
+  // Collect all steps for the response
   const steps: Step[] = [];
+  
+  // Initialize Google Generative AI
   const genAI = new GoogleGenerativeAI(geminiApiKey);
   
+  // Configure the model for JSON output (plan generation)
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     generationConfig: {
-      temperature: 0.1,
-      responseMimeType: 'application/json'
+      temperature: 0.1,            // Low temperature for consistent plan generation
+      responseMimeType: 'application/json'  // Request JSON output
     }
   });
 
+  // STEP 1: Record that we're analyzing the query
   steps.push({
     id: generateStepId(),
     type: 'thinking',
@@ -802,6 +1153,8 @@ export async function runAgent(
   });
 
   try {
+    // STEP 2: Start a chat with the system prompt pre-loaded
+    // We use chat history to inject the system prompt as prior context
     const chat = model.startChat({
       history: [
         { role: 'user', parts: [{ text: SYSTEM_PROMPT }] },
@@ -809,12 +1162,15 @@ export async function runAgent(
       ]
     });
     
+    // Send the user query and get the plan
     const result = await chat.sendMessage(userQuery);
     const responseText = result.response.text();
     
+    // STEP 3: Parse the plan from the LLM response
     let plan = parseJsonResponse(responseText);
     
     if (!plan || !plan.actions) {
+      // Plan generation failed - couldn't extract valid JSON
       steps.push({
         id: generateStepId(),
         type: 'error',
@@ -830,6 +1186,7 @@ export async function runAgent(
       };
     }
     
+    // Record the successful plan generation
     steps.push({
       id: generateStepId(),
       type: 'plan',
@@ -839,7 +1196,8 @@ export async function runAgent(
       timestamp: Date.now()
     });
     
-    // Validate the plan before execution
+    // STEP 4: Validate the plan before execution
+    // This catches invalid source references before we try to execute
     let validation = validatePlan(plan);
     if (!validation.valid) {
       steps.push({
@@ -857,14 +1215,17 @@ export async function runAgent(
       };
     }
     
+    // Step callback to collect execution steps
     const onStep = async (step: Step) => {
       steps.push(step);
     };
     
-    // Execute the plan
+    // STEP 5: Execute the plan
+    // This runs all fetch/calculate/compare actions sequentially
     let results = await executePlan(plan, rawgApiKey, onStep);
 
-    // Review Phase
+    // STEP 6: Review Phase
+    // The LLM evaluates if results are good enough to answer the question
     steps.push({
       id: generateStepId(),
       type: 'thinking',
@@ -876,6 +1237,7 @@ export async function runAgent(
 
     const review = await reviewExecutionResults(genAI, userQuery, results, plan);
     
+    // Handle unsatisfactory results - may need to re-plan
     if (!review.satisfactory && review.new_plan) {
       steps.push({
         id: generateStepId(),
@@ -886,7 +1248,7 @@ export async function runAgent(
         timestamp: Date.now()
       });
 
-      // Validate new plan
+      // Validate and execute the new plan if provided
       if (review.new_plan && review.new_plan.actions && Array.isArray(review.new_plan.actions)) {
         const newValidation = validatePlan(review.new_plan);
         if (newValidation.valid) {
@@ -901,9 +1263,10 @@ export async function runAgent(
             timestamp: Date.now()
           });
           
-          // Execute new plan
+          // Execute the revised plan
           results = await executePlan(plan, rawgApiKey, onStep);
         } else {
+          // New plan was invalid - proceed with original results
           steps.push({
             id: generateStepId(),
             type: 'error',
@@ -914,16 +1277,18 @@ export async function runAgent(
           });
         }
       } else {
-         steps.push({
-            id: generateStepId(),
-            type: 'error',
-            name: 'New Plan Missing Actions',
-            summary: 'The revised plan was missing actions, proceeding with original results.',
-            details: { review },
-            timestamp: Date.now()
-          });
+        // New plan was missing required structure
+        steps.push({
+          id: generateStepId(),
+          type: 'error',
+          name: 'New Plan Missing Actions',
+          summary: 'The revised plan was missing actions, proceeding with original results.',
+          details: { review },
+          timestamp: Date.now()
+        });
       }
     } else {
+      // Results are satisfactory - proceed to answer
       steps.push({
         id: generateStepId(),
         type: 'review',
@@ -934,7 +1299,7 @@ export async function runAgent(
       });
     }
     
-    // Generate final answer using LLM
+    // STEP 7: Generate final answer using LLM
     steps.push({
       id: generateStepId(),
       type: 'generating_answer',
@@ -946,7 +1311,7 @@ export async function runAgent(
     
     const answer = await generateFinalAnswer(genAI, userQuery, results, plan);
     
-    // Collect all widget data from results
+    // Collect all widget data from results for frontend display
     const widgets: any[] = [];
     for (const [key, value] of Object.entries(results)) {
       if (key.endsWith('_widget') && value) {
@@ -954,6 +1319,7 @@ export async function runAgent(
       }
     }
     
+    // Record the final answer step
     steps.push({
       id: generateStepId(),
       type: 'answer',
@@ -966,6 +1332,7 @@ export async function runAgent(
     return { answer, steps };
     
   } catch (error: any) {
+    // Handle any unexpected errors during the pipeline
     steps.push({
       id: generateStepId(),
       type: 'error',
@@ -982,15 +1349,36 @@ export async function runAgent(
   }
 }
 
-// Streaming version
+/**
+ * Streaming version of the agent orchestrator.
+ * 
+ * This is the entry point for streaming chat requests (POST /api/chat/stream).
+ * It executes the same Plan-Execute-Review-Answer pipeline as runAgent(), but
+ * sends real-time updates via Server-Sent Events (SSE).
+ * 
+ * The streamCallback is called for each step, allowing the frontend to display
+ * progress in real-time. This provides better UX for longer operations.
+ * 
+ * Event Flow:
+ * 1. 'step' events for each processing stage
+ * 2. 'answer' event with final response + widgets
+ * 3. 'error' event if something goes wrong
+ * 
+ * @param userQuery - The user's question about video games
+ * @param geminiApiKey - Google Gemini API key
+ * @param rawgApiKey - RAWG API key for game data
+ * @param streamCallback - Callback to send events to the client
+ */
 export async function runAgentStreaming(
   userQuery: string,
   geminiApiKey: string,
   rawgApiKey: string,
   streamCallback: StreamCallback
 ): Promise<void> {
+  // Initialize Google Generative AI
   const genAI = new GoogleGenerativeAI(geminiApiKey);
   
+  // Configure the model for JSON output
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     generationConfig: {
@@ -999,6 +1387,7 @@ export async function runAgentStreaming(
     }
   });
 
+  // Stream: Analyzing query
   await streamCallback({
     type: 'step',
     data: {
