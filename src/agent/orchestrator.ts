@@ -183,6 +183,21 @@ const SYSTEM_PROMPT = `You are a video game data analyst. You answer questions b
 **Platforms**: ${Object.keys(PLATFORMS).join(', ')}
 **Genres**: ${Object.keys(GENRES).join(', ')}
 
+## CRITICAL: Metacritic vs RAWG Rating
+
+The RAWG API has TWO different rating systems - understand the difference:
+
+| Rating Type | Can FILTER/QUERY? | Can ORDER BY? | Can use in CALCULATIONS? |
+|-------------|-------------------|---------------|--------------------------|
+| **Metacritic** (0-100) | ✅ YES - use metacritic_min/metacritic_max | ✅ YES | ✅ YES |
+| **RAWG Rating** (0-5) | ❌ NO - there is NO rating filter parameter | ✅ YES | ✅ YES |
+
+**What this means:**
+- To find "highly rated games", you MUST filter by Metacritic (e.g., metacritic_min: 80), NOT by RAWG rating
+- There is NO rating_min or rating_max parameter - the API does not support filtering by RAWG rating
+- You CAN sort by rating using ordering: "-rating" (descending) or "rating" (ascending)
+- You CAN use the "rating" field in calculate/compare actions on data you've already fetched
+
 ## Plan Format
 
 You MUST respond with ONLY a valid JSON object (no markdown, no explanation outside JSON):
@@ -205,8 +220,9 @@ You MUST respond with ONLY a valid JSON object (no markdown, no explanation outs
     "genres": ["action"],          // Optional: genre names  
     "date_from": "2024-01-01",     // Optional: YYYY-MM-DD
     "date_to": "2024-03-31",       // Optional: YYYY-MM-DD
-    "metacritic_min": 1,           // Optional: filter games with scores
-    "ordering": "-metacritic",     // Optional: sort order
+    "metacritic_min": 1,           // Optional: minimum Metacritic score (0-100). USE THIS for "high rated" queries!
+    "metacritic_max": 100,         // Optional: maximum Metacritic score (0-100)
+    "ordering": "-metacritic",     // Optional: sort order (-rating, -metacritic, name, released, etc.)
     "page_size": 40,               // Optional: max 40
     "search": "mario",             // Optional: search query for game names
     "search_exact": false,         // Optional: true for exact matches only
@@ -216,6 +232,7 @@ You MUST respond with ONLY a valid JSON object (no markdown, no explanation outs
   },
   "description": "Fetching PC games from Q1 2024"
 }
+// NOTE: There is NO rating_min or rating_max parameter! You CANNOT filter by RAWG rating.
 
 ## IMPORTANT: How Search Works
 

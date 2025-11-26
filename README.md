@@ -494,6 +494,7 @@ Health check endpoint.
 - **Page Size**: RAWG returns max 40 results per request
 - **Metacritic Coverage**: Not all games have Metacritic scores
 - **Historical Data**: RAWG may not have complete data for very old games
+- **Rating Filters**: The RAWG API only supports filtering by Metacritic score (not RAWG rating). You can sort by RAWG rating and use it in calculations, but cannot query games by rating threshold.
 
 ---
 
