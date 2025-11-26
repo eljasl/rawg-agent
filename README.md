@@ -20,7 +20,7 @@ npm run dev
 - **Interactive Widgets**: Expandable data tables and calculation breakdowns
 - **Streaming Responses**: Real-time updates via Server-Sent Events
 
-_Psst! Can you find the secret test?_
+*Psst! Can you find the secret test?*
 
 ### Example Queries
 
@@ -31,6 +31,18 @@ _Psst! Can you find the secret test?_
 "How many Super Mario games are there?"
 "Top 5 rated indie games of 2024"
 ```
+
+---
+
+## A Few Words on the Project
+
+The first step in the development process was understanding the tools: *Why is Cloudflare and TS/JS the go-to recommended combination for a system like this?* and *What are the limitations I should expect to face when using these tools?* These questions allowed laying the foundation for the approach for this project.
+
+After creating a very basic setup for testing the MCP system and RAWG API on a minimal UI, I started seeing the limitations and challenges in practice. Namely, how should the calculation step be handled when I can't just execute Python code on Cloudflare. The quirks of using RAWG API also became apparent, for example not being able to query games by platform name but instead having to provide the numeric platform ID, and confusion between Metacritic Score and Rating.
+
+After a couple of iterations of recreating a demo from ground-up and assembling a slightly more complete solution each time, the limitations of the standard MCP approach on the user experience became more noticable. It was slow due to continuous LLM calls whenever multiple different calls were needed on RAWG API. I've previously worked with agentic frameworks that function through execution of generated code like Smolagents, and felt this approach could alleviate the issue of multiple LLM calls.
+
+Since the output of this project is a functional and live solution, the project required spreading attention somewhat evenly across different components. The most challenging part was getting the LLM to use the RAWG API correctly and creating mechanisms to validate and retry. Visualizing and delivering data to the user while providing full transparency also caused some headaches. I have to admit to have relied quite bit on AI assistance on creating the UI and working with TS/JS as I'm mostly specialized in Python for day-to-day work and have limited experience in UI.
 
 ---
 
@@ -89,7 +101,7 @@ _Psst! Can you find the secret test?_
 
 ## This Is Not Standard MCP
 
-This system takes a different approach from the standard Model Context Protocol (MCP) pattern. Understanding this distinction is key to understanding the architecture.
+This system takes a different approach from the standard Model Context Protocol (MCP) pattern. Understanding the distinction between standard MCP and this implementation is key to understanding the architecture.
 
 ### Standard MCP: Tool-by-Tool Execution
 
@@ -186,15 +198,20 @@ For a query like *"Compare average ratings: Action vs RPG vs Indie games in 2023
 ### Trade-offs
 
 The plan-first approach is optimized for:
-- ✅ Queries where the required actions are predictable
-- ✅ Reducing latency and API costs
-- ✅ Transparency (users can see the full plan before execution)
+- Queries where the required actions are predictable
+- Reducing latency and API costs
+- Transparency (users can see the full plan before execution)
 
 Standard MCP may be better for:
-- ⚠️ Highly dynamic tasks requiring real-time decision making
-- ⚠️ Exploratory workflows where next steps depend heavily on intermediate results
+- Highly dynamic tasks requiring real-time decision making
+- Exploratory workflows where next steps depend heavily on intermediate results
 
 This system mitigates the adaptability trade-off with a **review step** that can trigger re-planning if initial results are unsatisfactory (e.g., a search returns 0 results).
+
+---
+
+### Why choose the trade-offs?
+In early testing, the standard MCP structure often produced either a frustratingly slow user experience due to multiple sequential LLM calls, or incomplete results due to not having a proper execution plan to follow. I felt the alternative approach yielded better results. Also, I believe LLM-produced code execution is simply a more elegant way to orchestrate tasks in general.
 
 ---
 
