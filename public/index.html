@@ -57,6 +57,12 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+
+    .logo:hover {
+      opacity: 0.8;
     }
 
     .header-subtitle {
@@ -745,6 +751,70 @@
     /* When intermediate widget is expanded, show summary */
     .calc-widget-intermediate.expanded .calc-widget-summary {
       display: flex !important;
+    }
+
+    /* Collapsible intermediate data container */
+    .intermediate-data-container {
+      background: rgba(31, 111, 235, 0.03);
+      border: 1px solid var(--border-secondary);
+      border-radius: 0.5rem;
+      margin: 0.5rem 0 1rem 0;
+      overflow: hidden;
+    }
+
+    .intermediate-data-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .intermediate-data-header:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    .intermediate-data-icon {
+      width: 14px;
+      height: 14px;
+      stroke: var(--text-muted);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+
+    .intermediate-data-container.expanded .intermediate-data-icon {
+      transform: rotate(90deg);
+    }
+
+    .intermediate-data-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .intermediate-data-count {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      padding: 0.125rem 0.5rem;
+      border-radius: 1rem;
+      margin-left: auto;
+    }
+
+    .intermediate-data-content {
+      display: none;
+      padding: 0.25rem 0.5rem 0.5rem 0.5rem;
+      border-top: 1px solid var(--border-secondary);
+    }
+
+    .intermediate-data-container.expanded .intermediate-data-content {
+      display: block;
+    }
+
+    /* Tighter spacing for intermediate widgets inside the container */
+    .intermediate-data-content .calc-widget-intermediate {
+      margin: 0.125rem 0;
     }
 
     .calc-widget-header {
@@ -1497,7 +1567,7 @@
 </head>
 <body>
   <header class="header">
-    <span class="logo">🎮 RAWG Analyst</span>
+    <a href="/" class="logo">🎮 RAWG Analyst</a>
     <span class="header-subtitle">AI-powered video game data analysis<span class="version-badge" onclick="openCheatCodeQuiz()" title="v1.0.0">v1.0</span></span>
     <div class="header-buttons">
       <button class="settings-btn" onclick="showSettings()">
@@ -1525,7 +1595,7 @@
       <div class="examples">
         <button class="example-btn" onclick="askExample(this)">Did PC or XBOX have more new games released in 2024?</button>
         <button class="example-btn" onclick="askExample(this)">What genre has the highest average rating?</button>
-        <button class="example-btn" onclick="askExample(this)">How many games have been released for PC after 2020 with rating over 4?</button>
+        <button class="example-btn" onclick="askExample(this)">How many games released for PC after 2020 have Metacritic score above 80?</button>
       </div>
     </div>
   </div>
@@ -1696,7 +1766,7 @@
           <div class="examples">
             <button class="example-btn" onclick="askExample(this)">Did PC or XBOX have more new games released in 2024?</button>
             <button class="example-btn" onclick="askExample(this)">What genre has the highest average rating?</button>
-            <button class="example-btn" onclick="askExample(this)">How many games have been released for PC after 2020 with rating over 4?</button>
+            <button class="example-btn" onclick="askExample(this)">How many games released for PC after 2020 have Metacritic score above 80?</button>
           </div>
         </div>
       `;
@@ -2635,13 +2705,45 @@
     function renderCalculationWidgets(widgets, container) {
       if (!widgets || widgets.length === 0) return;
       
-      let widgetsHtml = '';
       const lastIndex = widgets.length - 1;
       
+      // Separate intermediate and final widgets
+      const intermediateWidgets = [];
+      const finalWidgets = [];
+      
       widgets.forEach((widget, index) => {
-        // Only the last widget is shown fully; intermediate ones (data fetches) are compact
         const isIntermediate = index < lastIndex && widget.type === 'data';
-        widgetsHtml += createCalculationWidget(widget, isIntermediate);
+        if (isIntermediate) {
+          intermediateWidgets.push(widget);
+        } else {
+          finalWidgets.push(widget);
+        }
+      });
+      
+      let widgetsHtml = '';
+      
+      // If there are intermediate widgets, wrap them in a collapsible container
+      if (intermediateWidgets.length > 0) {
+        const intermediateHtml = intermediateWidgets.map(w => createCalculationWidget(w, true)).join('');
+        widgetsHtml += `
+          <div class="intermediate-data-container">
+            <div class="intermediate-data-header" onclick="toggleIntermediateData(this)">
+              <svg class="intermediate-data-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="intermediate-data-label">Source Data</span>
+              <span class="intermediate-data-count">${intermediateWidgets.length} ${intermediateWidgets.length === 1 ? 'fetch' : 'fetches'}</span>
+            </div>
+            <div class="intermediate-data-content">
+              ${intermediateHtml}
+            </div>
+          </div>
+        `;
+      }
+      
+      // Add final widgets (shown fully)
+      finalWidgets.forEach(widget => {
+        widgetsHtml += createCalculationWidget(widget, false);
       });
       
       const widgetContainer = document.createElement('div');
@@ -2655,6 +2757,11 @@
       } else {
         container.appendChild(widgetContainer);
       }
+    }
+    
+    function toggleIntermediateData(header) {
+      const container = header.parentElement;
+      container.classList.toggle('expanded');
     }
 
     // ========== Easter Egg: Cheat Code Quiz ==========
