@@ -1,0 +1,2930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAWG Game Analyst</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --bg-card: #1c2128;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --accent-primary: #58a6ff;
+      --accent-secondary: #1f6feb;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-purple: #a371f7;
+      --accent-red: #f85149;
+      --border-primary: #30363d;
+      --border-secondary: #21262d;
+      --shadow-lg: 0 16px 70px rgba(0, 0, 0, 0.5);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+      border-bottom: 1px solid var(--border-primary);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      flex: 1;
+    }
+
+    .header-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .clear-btn, .settings-btn {
+      background: transparent;
+      border: 1px solid var(--border-primary);
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
+
+    .clear-btn:hover {
+      border-color: var(--accent-red);
+      color: var(--accent-red);
+      background: rgba(248, 81, 73, 0.1);
+    }
+
+    .settings-btn:hover {
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
+      background: rgba(88, 166, 255, 0.1);
+    }
+
+    /* Settings modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .modal-content {
+      background: var(--bg-card);
+      padding: 2rem;
+      border-radius: 1rem;
+      max-width: 500px;
+      width: 90%;
+      border: 1px solid var(--border-primary);
+    }
+
+    .modal-header {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .modal-description {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.625rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-primary);
+      border-radius: 0.5rem;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+      border-color: var(--accent-primary);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+
+    .modal-btn {
+      padding: 0.625rem 1.25rem;
+      border-radius: 0.5rem;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .modal-btn-cancel {
+      background: transparent;
+      border: 1px solid var(--border-primary);
+      color: var(--text-secondary);
+    }
+
+    .modal-btn-cancel:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .modal-btn-save {
+      background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
+      color: white;
+    }
+
+    .modal-btn-save:hover {
+      transform: scale(1.02);
+    }
+
+    .key-status {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      margin-left: 0.5rem;
+    }
+
+    .key-status.active {
+      background: rgba(63, 185, 80, 0.2);
+      color: var(--accent-green);
+    }
+
+    .key-status.default {
+      background: rgba(139, 148, 158, 0.2);
+      color: var(--text-secondary);
+    }
+
+    /* Main chat container */
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.5rem;
+      gap: 1rem;
+      overflow-y: auto;
+    }
+
+    /* Message bubbles */
+    .message {
+      display: flex;
+      gap: 0.75rem;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      flex-direction: row-reverse;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .message.user .avatar {
+      background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
+    }
+
+    .message.assistant .avatar {
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-orange));
+    }
+
+    .message-content {
+      max-width: 80%;
+    }
+
+    .message.user .message-content {
+      background: var(--accent-secondary);
+      padding: 0.875rem 1.125rem;
+      border-radius: 1rem 1rem 0.25rem 1rem;
+    }
+
+    .message.assistant .message-content {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: 1rem 1rem 1rem 0.25rem;
+      overflow: hidden;
+    }
+
+    /* Steps container */
+    .steps-container {
+      border-bottom: 1px solid var(--border-secondary);
+    }
+
+    .steps-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      background: var(--bg-tertiary);
+      transition: background 0.2s;
+    }
+
+    .steps-header:hover {
+      background: var(--border-primary);
+    }
+
+    .steps-header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .steps-icon {
+      width: 18px;
+      height: 18px;
+      transition: transform 0.2s;
+    }
+
+    .steps-container.expanded .steps-icon {
+      transform: rotate(90deg);
+    }
+
+    .steps-label {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .steps-count {
+      background: var(--bg-secondary);
+      padding: 0.125rem 0.5rem;
+      border-radius: 1rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Steps list */
+    .steps-list {
+      display: none;
+      flex-direction: column;
+    }
+
+    .steps-container.expanded .steps-list {
+      display: flex;
+    }
+
+    /* Individual step */
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-secondary);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .step:last-child {
+      border-bottom: none;
+    }
+
+    .step:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .step-indicator {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 0.75rem;
+    }
+
+    .step.thinking .step-indicator { background: var(--accent-purple); color: white; }
+    .step.plan .step-indicator { background: var(--accent-orange); color: white; }
+    .step.code_generated .step-indicator { background: var(--accent-orange); color: white; }
+    .step.tool_call .step-indicator { background: var(--accent-primary); color: white; }
+    .step.tool_result .step-indicator { background: var(--accent-green); color: white; }
+    .step.generating_answer .step-indicator { background: var(--accent-purple); color: white; }
+    .step.answer .step-indicator { background: var(--accent-green); color: white; }
+    .step.error .step-indicator { background: var(--accent-red); color: white; }
+
+    .step-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .step-name {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.125rem;
+    }
+
+    .step-summary {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .step-expand-icon {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      align-self: center;
+    }
+
+    /* Step details modal */
+    .step-details {
+      display: none;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-primary);
+      border-radius: 0.5rem;
+      margin: 0.5rem 0.75rem 0.75rem 2.5rem;
+      overflow: hidden;
+    }
+
+    .step.expanded .step-details {
+      display: block;
+      animation: slideDown 0.2s ease-out;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; max-height: 0; }
+      to { opacity: 1; max-height: 500px; }
+    }
+
+    .step-details-content {
+      padding: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6875rem;
+      color: var(--text-secondary);
+      overflow-x: auto;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Answer section */
+    .answer-content {
+      padding: 1rem 1.125rem;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+
+    .answer-content p {
+      margin-bottom: 0.75rem;
+    }
+
+    .answer-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .answer-content strong {
+      color: var(--accent-primary);
+    }
+
+    .answer-content code {
+      background: var(--bg-tertiary);
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875em;
+    }
+
+    /* Latest step indicator (when collapsed) */
+    .latest-step {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg-tertiary);
+      border-radius: 0.5rem;
+      margin: 0.75rem;
+    }
+
+    .steps-container.expanded .latest-step {
+      display: none;
+    }
+
+    .latest-step-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .latest-step-text {
+      flex: 1;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .latest-step .loading-dots {
+      display: inline-flex;
+      gap: 3px;
+      margin-left: auto;
+    }
+
+    .latest-step .loading-dots span {
+      width: 5px;
+      height: 5px;
+      background: var(--accent-primary);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out;
+    }
+
+    .latest-step .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .latest-step .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+    /* Input area */
+    .input-area {
+      border-top: 1px solid var(--border-primary);
+      background: var(--bg-secondary);
+      padding: 1rem 2rem;
+    }
+
+    .input-wrapper {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .input-field {
+      flex: 1;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-primary);
+      border-radius: 0.75rem;
+      padding: 0.875rem 1rem;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.9375rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: var(--accent-primary);
+    }
+
+    .input-field::placeholder {
+      color: var(--text-muted);
+    }
+
+    .send-btn {
+      background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
+      border: none;
+      border-radius: 0.75rem;
+      padding: 0.875rem 1.5rem;
+      color: white;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+
+    .send-btn:hover {
+      transform: scale(1.02);
+    }
+
+    .send-btn:active {
+      transform: scale(0.98);
+    }
+
+    .send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Loading state */
+    .loading-message .steps-header {
+      background: var(--bg-tertiary);
+    }
+
+    .loading-dots {
+      display: inline-flex;
+      gap: 4px;
+    }
+
+    .loading-dots span {
+      width: 6px;
+      height: 6px;
+      background: var(--accent-primary);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out;
+    }
+
+    .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    /* Example queries */
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding: 0 1rem;
+      justify-content: center;
+    }
+
+    .example-btn {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: 2rem;
+      padding: 0.5rem 1rem;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .example-btn:hover {
+      background: var(--bg-card);
+      border-color: var(--accent-primary);
+      color: var(--text-primary);
+    }
+
+    /* Welcome message */
+    .welcome {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+
+    .welcome h2 {
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      font-size: 1.25rem;
+    }
+
+    .welcome p {
+      font-size: 0.9375rem;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    /* ========== Calculation Widget Styles ========== */
+    .calc-widget {
+      background: linear-gradient(135deg, rgba(31, 111, 235, 0.08), rgba(163, 113, 247, 0.08));
+      border: 1px solid var(--border-primary);
+      border-radius: 0.75rem;
+      margin: 1rem 0;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .calc-widget:hover {
+      border-color: var(--accent-primary);
+      box-shadow: 0 4px 20px rgba(88, 166, 255, 0.15);
+    }
+
+    /* Intermediate (compact) widget styles */
+    .calc-widget-intermediate {
+      margin: 0.25rem 0;
+      background: rgba(31, 111, 235, 0.03);
+      border-radius: 0.5rem;
+    }
+
+    .calc-widget-intermediate:hover {
+      box-shadow: 0 1px 6px rgba(88, 166, 255, 0.08);
+    }
+
+    .calc-widget-header-compact {
+      padding: 0.375rem 0.625rem;
+      background: transparent;
+    }
+
+    .calc-widget-header-compact:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    .calc-widget-icon-small {
+      width: 18px;
+      height: 18px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));
+      border-radius: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.625rem;
+      flex-shrink: 0;
+    }
+
+    .calc-widget-compact-text {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .calc-widget-compact-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .calc-widget-compact-result {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent-primary);
+      white-space: nowrap;
+    }
+
+    .calc-widget-expand-small {
+      width: 16px;
+      height: 16px;
+    }
+
+    .calc-widget-expand-small svg {
+      width: 10px;
+      height: 10px;
+    }
+
+    /* When intermediate widget is expanded, show summary */
+    .calc-widget-intermediate.expanded .calc-widget-summary {
+      display: flex !important;
+    }
+
+    .calc-widget-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.875rem 1rem;
+      cursor: pointer;
+      background: rgba(0, 0, 0, 0.2);
+      transition: background 0.2s;
+    }
+
+    .calc-widget-header:hover {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .calc-widget-title {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+    }
+
+    .calc-widget-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .calc-widget-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .calc-widget-operation {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .calc-widget-result {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .calc-widget-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-primary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .calc-widget-expand {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .calc-widget.expanded .calc-widget-expand {
+      transform: rotate(180deg);
+      background: var(--accent-primary);
+    }
+
+    .calc-widget-expand svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--text-secondary);
+    }
+
+    .calc-widget.expanded .calc-widget-expand svg {
+      stroke: white;
+    }
+
+    /* Summary bar with key numbers */
+    .calc-widget-summary {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.625rem 1rem;
+      border-top: 1px solid var(--border-secondary);
+      overflow-x: auto;
+    }
+
+    .calc-summary-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      background: var(--bg-tertiary);
+      padding: 0.375rem 0.625rem;
+      border-radius: 2rem;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+
+    .calc-summary-chip-label {
+      color: var(--text-muted);
+    }
+
+    .calc-summary-chip-value {
+      color: var(--accent-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+
+    /* Expanded details panel */
+    .calc-widget-details {
+      display: none;
+      border-top: 1px solid var(--border-secondary);
+    }
+
+    .calc-widget.expanded .calc-widget-details {
+      display: block;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    /* Tabs for switching between views */
+    .calc-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-secondary);
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .calc-tab {
+      padding: 0.75rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .calc-tab:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .calc-tab.active {
+      color: var(--accent-primary);
+      border-bottom-color: var(--accent-primary);
+    }
+
+    .calc-tab-content {
+      display: none;
+      padding: 1rem;
+    }
+
+    .calc-tab-content.active {
+      display: block;
+    }
+
+    /* Calculation breakdown */
+    .calc-breakdown {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+    }
+
+    .calc-formula {
+      background: var(--bg-primary);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border-secondary);
+    }
+
+    .calc-formula-label {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .calc-formula-code {
+      color: var(--accent-green);
+      font-size: 0.9375rem;
+    }
+
+    .calc-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .calc-step {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.625rem;
+      background: var(--bg-primary);
+      border-radius: 0.375rem;
+    }
+
+    .calc-step-num {
+      width: 20px;
+      height: 20px;
+      background: var(--accent-primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6875rem;
+      flex-shrink: 0;
+    }
+
+    .calc-step-text {
+      color: var(--text-secondary);
+    }
+
+    .calc-step-value {
+      color: var(--accent-primary);
+      margin-left: auto;
+      font-weight: 600;
+    }
+
+    /* Data values section */
+    .calc-values {
+      background: var(--bg-primary);
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .calc-values-label {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .calc-values-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.375rem;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    .calc-value-item {
+      background: var(--bg-tertiary);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    /* RAWG Data Table */
+    .calc-table-container {
+      overflow-x: auto;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-secondary);
+    }
+
+    .calc-data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+
+    .calc-data-table th {
+      background: var(--bg-tertiary);
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border-secondary);
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+    }
+
+    .calc-data-table td {
+      padding: 0.625rem 1rem;
+      border-bottom: 1px solid var(--border-secondary);
+      color: var(--text-secondary);
+    }
+
+    .calc-data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .calc-data-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .calc-data-table .game-name {
+      color: var(--text-primary);
+      font-weight: 500;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .calc-data-table .score-cell {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+
+    .calc-data-table .score-cell.highlight {
+      color: var(--accent-green);
+    }
+
+    .calc-table-wrapper {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .calc-table-footer {
+      background: var(--bg-tertiary);
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    /* Comparison widget specific styles */
+    .calc-comparison-groups {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .calc-group-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-secondary);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .calc-group-name {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .calc-group-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--accent-primary);
+    }
+
+    .calc-group-card.winner {
+      border-color: var(--accent-green);
+      background: rgba(63, 185, 80, 0.1);
+    }
+
+    .calc-group-card.winner .calc-group-value {
+      color: var(--accent-green);
+    }
+
+    .calc-winner-badge {
+      display: inline-block;
+      background: var(--accent-green);
+      color: white;
+      font-size: 0.625rem;
+      padding: 0.125rem 0.5rem;
+      border-radius: 1rem;
+      margin-top: 0.5rem;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    /* ========== Easter Egg Styles ========== */
+    .version-badge {
+      font-size: 0.625rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+      padding: 0.125rem 0.375rem;
+      margin-left: 0.375rem;
+      transition: all 0.2s;
+      font-family: 'JetBrains Mono', monospace;
+      border: 1px solid transparent;
+      border-radius: 0.25rem;
+      animation: subtleGlow 3s ease-in-out infinite;
+    }
+    
+    @keyframes subtleGlow {
+      0%, 100% { 
+        opacity: 0.4;
+        background: transparent;
+        border-color: transparent;
+      }
+      50% { 
+        opacity: 0.7;
+        background: rgba(163, 113, 247, 0.1);
+        border-color: rgba(163, 113, 247, 0.3);
+      }
+    }
+    
+    .version-badge:hover {
+      animation: none;
+      opacity: 1;
+      color: var(--accent-purple);
+      border-color: var(--accent-purple);
+      background: rgba(163, 113, 247, 0.15);
+      box-shadow: 0 0 8px rgba(163, 113, 247, 0.3);
+    }
+
+    /* Quiz Modal */
+    .quiz-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .quiz-modal {
+      background: linear-gradient(180deg, #1a1f2e 0%, #0d1117 100%);
+      border: 2px solid var(--accent-purple);
+      border-radius: 1rem;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 0 60px rgba(163, 113, 247, 0.3), 0 0 120px rgba(163, 113, 247, 0.1);
+      overflow: hidden;
+      animation: quizAppear 0.4s ease-out;
+    }
+
+    @keyframes quizAppear {
+      from { transform: scale(0.8) translateY(30px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .quiz-header {
+      background: linear-gradient(135deg, rgba(163, 113, 247, 0.2), rgba(88, 166, 255, 0.1));
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .quiz-header-icon {
+      font-size: 1.75rem;
+      animation: pulse 2s infinite;
+    }
+
+    .quiz-header-text h3 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.125rem 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .quiz-header-text p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .quiz-progress {
+      display: flex;
+      gap: 0.375rem;
+      padding: 1rem 1.5rem 0.5rem;
+    }
+
+    .quiz-progress-dot {
+      width: 2rem;
+      height: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 2px;
+      transition: all 0.3s;
+    }
+
+    .quiz-progress-dot.active {
+      background: var(--accent-purple);
+      box-shadow: 0 0 8px rgba(163, 113, 247, 0.5);
+    }
+
+    .quiz-progress-dot.correct {
+      background: var(--accent-green);
+    }
+
+    .quiz-progress-dot.wrong {
+      background: var(--accent-red);
+    }
+
+    .quiz-question {
+      padding: 1rem 1.5rem;
+    }
+
+    .quiz-question-text {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+
+    .quiz-question-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-top: -0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .quiz-option {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: 0.5rem;
+      padding: 0.875rem 1rem;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .quiz-option:hover {
+      background: var(--bg-card);
+      border-color: var(--accent-purple);
+      color: var(--text-primary);
+      transform: translateX(4px);
+    }
+
+    .quiz-option-key {
+      width: 24px;
+      height: 24px;
+      background: var(--bg-primary);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent-purple);
+    }
+
+    .quiz-option.selected {
+      border-color: var(--accent-primary);
+      background: rgba(88, 166, 255, 0.15);
+    }
+
+    .quiz-option.correct {
+      border-color: var(--accent-green);
+      background: rgba(63, 185, 80, 0.2);
+      color: var(--accent-green);
+    }
+
+    .quiz-option.wrong {
+      border-color: var(--accent-red);
+      background: rgba(248, 81, 73, 0.2);
+      color: var(--accent-red);
+    }
+
+    .quiz-footer {
+      padding: 1rem 1.5rem 1.5rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .quiz-btn {
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-primary));
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      color: white;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .quiz-btn:hover {
+      transform: scale(1.02);
+      box-shadow: 0 4px 20px rgba(163, 113, 247, 0.4);
+    }
+
+    .quiz-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .quiz-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.25rem;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+
+    .quiz-close:hover {
+      opacity: 1;
+    }
+
+    /* Result screens */
+    .quiz-result {
+      padding: 2rem 1.5rem;
+      text-align: center;
+    }
+
+    .quiz-result-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    .quiz-result h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 0 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .quiz-result.success h3 {
+      color: var(--accent-green);
+    }
+
+    .quiz-result.failure h3 {
+      color: var(--accent-red);
+    }
+
+    .quiz-result p {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      margin: 0;
+    }
+
+    /* DOOM Guy Animation */
+    .doomguy-container {
+      position: fixed;
+      bottom: 2rem;
+      left: -100px;
+      z-index: 3000;
+      pointer-events: none;
+    }
+
+    .doomguy {
+      width: 80px;
+      height: auto;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 0 10px rgba(255, 100, 0, 0.8));
+      animation: doomguyBob 0.15s ease-in-out infinite alternate;
+    }
+
+    @keyframes doomguyBob {
+      0% { transform: translateY(0) scaleX(-1); }
+      100% { transform: translateY(-5px) scaleX(-1); }
+    }
+
+    .doomguy-container.running {
+      animation: doomguyDash 2.5s linear forwards;
+    }
+
+    @keyframes doomguyDash {
+      0% { left: -100px; }
+      100% { left: calc(100vw + 100px); }
+    }
+
+    @keyframes doomguyRun {
+      0% { transform: scaleX(1); }
+      50% { transform: scaleX(-1); }
+      100% { transform: scaleX(1); }
+    }
+
+    /* R.I.P. Skull animation */
+    .rip-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 3000;
+      text-align: center;
+      animation: ripAppear 0.3s ease-out;
+    }
+
+    @keyframes ripAppear {
+      from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+      to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+
+    .rip-skull {
+      font-size: 6rem;
+      display: block;
+      animation: skullPulse 0.5s ease-in-out infinite;
+      filter: drop-shadow(0 0 30px rgba(248, 81, 73, 0.5));
+    }
+
+    @keyframes skullPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .rip-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--accent-red);
+      text-shadow: 0 0 20px rgba(248, 81, 73, 0.8);
+      margin-top: 0.5rem;
+      letter-spacing: 0.5rem;
+    }
+
+    /* Screen shake for wrong answer */
+    @keyframes screenShake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+
+    .shake {
+      animation: screenShake 0.4s ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <span class="logo">🎮 RAWG Analyst</span>
+    <span class="header-subtitle">AI-powered video game data analysis<span class="version-badge" onclick="openCheatCodeQuiz()" title="v1.0.0">v1.0</span></span>
+    <div class="header-buttons">
+      <button class="settings-btn" onclick="showSettings()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 1v6m0 6v6"></path>
+          <path d="M17.2 17.2l-4.2-4.2m-2 0L6.8 17.2"></path>
+          <path d="M6.8 6.8L11 11m2 0l4.2-4.2"></path>
+        </svg>
+        Settings
+      </button>
+      <button class="clear-btn" onclick="clearChat()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+        </svg>
+        Clear Chat
+      </button>
+    </div>
+  </header>
+
+  <div class="chat-container" id="chatContainer">
+    <div class="welcome">
+      <h2>Welcome to RAWG Game Analyst</h2>
+      <p>Ask me questions about video game data. I can fetch real game data from RAWG and perform calculations to answer analytical questions.</p>
+      <div class="examples">
+        <button class="example-btn" onclick="askExample(this)">Did PC or XBOX have more new games released in 2024?</button>
+        <button class="example-btn" onclick="askExample(this)">What genre has the highest average rating?</button>
+        <button class="example-btn" onclick="askExample(this)">How many games have been released for PC after 2020 with rating over 4?</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-wrapper">
+      <input 
+        type="text" 
+        class="input-field" 
+        id="messageInput" 
+        placeholder="Ask about video game data..."
+        onkeypress="handleKeyPress(event)"
+      >
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const chatContainer = document.getElementById('chatContainer');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    // Load API keys from localStorage
+    let userGeminiKey = localStorage.getItem('gemini_api_key') || '';
+    let userRawgKey = localStorage.getItem('rawg_api_key') || '';
+
+    // Step type icons
+    const stepIcons = {
+      thinking: '🧠',
+      plan: '📋',
+      code_generated: '📝',
+      tool_call: '🔧',
+      tool_result: '✅',
+      generating_answer: '✍️',
+      answer: '💬',
+      error: '❌',
+      review: '🧐'
+    };
+
+    // Settings modal functions
+    function showSettings() {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.id = 'settingsModal';
+      modal.innerHTML = `
+        <div class="modal-content">
+          <h3 class="modal-header">API Key Settings</h3>
+          <p class="modal-description">
+            If the default API keys are throttling, you can provide your own. 
+            Your keys are stored locally in your browser and sent only with API requests.
+          </p>
+          <div class="form-group">
+            <label class="form-label">
+              Gemini API Key
+              <span class="key-status ${userGeminiKey ? 'active' : 'default'}">
+                ${userGeminiKey ? 'Custom' : 'Default'}
+              </span>
+            </label>
+            <input 
+              type="text" 
+              id="geminiKeyInput" 
+              class="form-input"
+              value="${userGeminiKey}" 
+              placeholder="AIza..."
+            >
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              RAWG API Key
+              <span class="key-status ${userRawgKey ? 'active' : 'default'}">
+                ${userRawgKey ? 'Custom' : 'Default'}
+              </span>
+            </label>
+            <input 
+              type="text" 
+              id="rawgKeyInput" 
+              class="form-input"
+              value="${userRawgKey}"
+              placeholder="Enter your RAWG API key..."
+            >
+          </div>
+          <div class="modal-buttons">
+            <button onclick="closeSettings()" class="modal-btn modal-btn-cancel">Cancel</button>
+            <button onclick="saveSettings()" class="modal-btn modal-btn-save">Save</button>
+          </div>
+        </div>
+      `;
+      
+      // Close on background click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          closeSettings();
+        }
+      });
+      
+      document.body.appendChild(modal);
+      
+      // Focus first input
+      setTimeout(() => {
+        document.getElementById('geminiKeyInput')?.focus();
+      }, 100);
+    }
+
+    function closeSettings() {
+      const modal = document.getElementById('settingsModal');
+      if (modal) {
+        modal.remove();
+      }
+    }
+
+    function saveSettings() {
+      const geminiInput = document.getElementById('geminiKeyInput');
+      const rawgInput = document.getElementById('rawgKeyInput');
+      
+      userGeminiKey = geminiInput.value.trim();
+      userRawgKey = rawgInput.value.trim();
+      
+      // Save to localStorage
+      if (userGeminiKey) {
+        localStorage.setItem('gemini_api_key', userGeminiKey);
+      } else {
+        localStorage.removeItem('gemini_api_key');
+      }
+      
+      if (userRawgKey) {
+        localStorage.setItem('rawg_api_key', userRawgKey);
+      } else {
+        localStorage.removeItem('rawg_api_key');
+      }
+      
+      closeSettings();
+      
+      // Show confirmation
+      const confirmation = document.createElement('div');
+      confirmation.style.cssText = `
+        position: fixed;
+        top: 5rem;
+        right: 2rem;
+        background: var(--accent-green);
+        color: white;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        z-index: 1001;
+        animation: fadeIn 0.3s ease-out;
+      `;
+      confirmation.textContent = '✓ Settings saved';
+      document.body.appendChild(confirmation);
+      
+      setTimeout(() => {
+        confirmation.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => confirmation.remove(), 300);
+      }, 2000);
+    }
+
+    function handleKeyPress(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function clearChat() {
+      chatContainer.innerHTML = `
+        <div class="welcome">
+          <h2>Welcome to RAWG Game Analyst</h2>
+          <p>Ask me questions about video game data. I can fetch real game data from RAWG and perform calculations to answer analytical questions.</p>
+          <div class="examples">
+            <button class="example-btn" onclick="askExample(this)">Did PC or XBOX have more new games released in 2024?</button>
+            <button class="example-btn" onclick="askExample(this)">What genre has the highest average rating?</button>
+            <button class="example-btn" onclick="askExample(this)">How many games have been released for PC after 2020 with rating over 4?</button>
+          </div>
+        </div>
+      `;
+      messageInput.value = '';
+      messageInput.focus();
+    }
+
+    function askExample(btn) {
+      messageInput.value = btn.textContent;
+      sendMessage();
+    }
+
+    function createUserMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'message user';
+      div.innerHTML = `
+        <div class="avatar">👤</div>
+        <div class="message-content">${escapeHtml(text)}</div>
+      `;
+      return div;
+    }
+
+    function createAssistantMessage(response) {
+      const div = document.createElement('div');
+      div.className = 'message assistant';
+      
+      const steps = response.steps || [];
+      const latestStep = steps[steps.length - 1];
+      
+      let stepsHtml = '';
+      if (steps.length > 0) {
+        stepsHtml = `
+          <div class="steps-container" id="steps-${Date.now()}">
+            <div class="steps-header" onclick="toggleSteps(this)">
+              <div class="steps-header-left">
+                <svg class="steps-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+                <span class="steps-label">Processing Steps</span>
+              </div>
+              <span class="steps-count">${steps.length} steps</span>
+            </div>
+            ${latestStep ? `
+              <div class="latest-step">
+                <span class="latest-step-dot"></span>
+                <span class="latest-step-text">${escapeHtml(latestStep.name)}: ${escapeHtml(latestStep.summary.substring(0, 60))}...</span>
+              </div>
+            ` : ''}
+            <div class="steps-list">
+              ${steps.map((step, i) => `
+                <div class="step ${step.type}" onclick="toggleStepDetails(this, event)">
+                  <div class="step-indicator">${stepIcons[step.type] || '•'}</div>
+                  <div class="step-content">
+                    <div class="step-name">${escapeHtml(step.name)}</div>
+                    <div class="step-summary">${escapeHtml(step.summary)}</div>
+                  </div>
+                  <span class="step-expand-icon">▼</span>
+                  <div class="step-details">
+                    <div class="step-details-content">${escapeHtml(JSON.stringify(step.details, null, 2))}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      
+      div.innerHTML = `
+        <div class="avatar">🤖</div>
+        <div class="message-content">
+          ${stepsHtml}
+          <div class="answer-content">${formatAnswer(response.answer)}</div>
+        </div>
+      `;
+      
+      return div;
+    }
+
+    function createLoadingMessage() {
+      const div = document.createElement('div');
+      div.className = 'message assistant loading-message';
+      div.id = 'loadingMessage';
+      div.innerHTML = `
+        <div class="avatar">🤖</div>
+        <div class="message-content">
+          <div class="steps-container">
+            <div class="steps-header">
+              <div class="steps-header-left">
+                <span class="steps-label">Processing</span>
+                <span class="loading-dots"><span></span><span></span><span></span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      return div;
+    }
+
+    function toggleSteps(header) {
+      const container = header.parentElement;
+      container.classList.toggle('expanded');
+    }
+
+    function toggleStepDetails(stepEl, event) {
+      event.stopPropagation();
+      stepEl.classList.toggle('expanded');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function formatAnswer(text) {
+      if (!text) return '';
+      
+      // Convert markdown-like formatting
+      let html = escapeHtml(text);
+      
+      // Bold text
+      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      
+      // Code blocks
+      html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+      
+      // Line breaks to paragraphs
+      html = html.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+      
+      return html;
+    }
+
+    async function sendMessage() {
+      const message = messageInput.value.trim();
+      if (!message) return;
+      
+      // Clear welcome message if present
+      const welcome = chatContainer.querySelector('.welcome');
+      if (welcome) welcome.remove();
+      
+      // Add user message
+      chatContainer.appendChild(createUserMessage(message));
+      messageInput.value = '';
+      
+      // Create assistant message container for streaming
+      const assistantMsg = createStreamingAssistantMessage();
+      chatContainer.appendChild(assistantMsg);
+      
+      // Scroll to bottom
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      
+      // Disable input while processing
+      sendBtn.disabled = true;
+      messageInput.disabled = true;
+      
+      try {
+        // Prepare request body with message and optional API keys
+        const requestBody = { message };
+        
+        // Include user-provided API keys if available
+        if (userGeminiKey) {
+          requestBody.geminiApiKey = userGeminiKey;
+        }
+        if (userRawgKey) {
+          requestBody.rawgApiKey = userRawgKey;
+        }
+        
+        const response = await fetch('/api/chat/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let currentEventType = 'step'; // Default event type
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              // Capture event type for next data line
+              currentEventType = line.slice(7).trim();
+            } else if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+              
+              try {
+                const parsed = JSON.parse(data);
+                // Wrap the data with the event type
+                handleStreamEvent({ type: currentEventType, data: parsed }, assistantMsg);
+              } catch (e) {
+                console.error('Failed to parse SSE data:', e, data);
+              }
+              // Reset to default after processing
+              currentEventType = 'step';
+            }
+          }
+        }
+        
+      } catch (error) {
+        console.error('Streaming error:', error);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'answer-content';
+        errorDiv.style.color = 'var(--accent-red)';
+        errorDiv.innerHTML = `Network error: ${escapeHtml(error.message)}`;
+        
+        const contentArea = assistantMsg.querySelector('.message-content');
+        if (contentArea) {
+          contentArea.innerHTML = '';
+          contentArea.appendChild(errorDiv);
+        }
+      } finally {
+        sendBtn.disabled = false;
+        messageInput.disabled = false;
+        messageInput.focus();
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+    }
+    
+    function createStreamingAssistantMessage() {
+      const div = document.createElement('div');
+      div.className = 'message assistant streaming-message';
+      div.innerHTML = `
+        <div class="avatar">🤖</div>
+        <div class="message-content">
+          <div class="steps-container" data-steps-container>
+            <div class="steps-header" onclick="toggleSteps(this)">
+              <div class="steps-header-left">
+                <svg class="steps-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+                <span class="steps-label">Processing Steps</span>
+              </div>
+              <span class="steps-count" data-step-count>0 steps</span>
+            </div>
+            <div class="latest-step" data-latest-step>
+              <span class="latest-step-dot"></span>
+              <span class="latest-step-text" data-latest-step-text><strong>Starting</strong> <span style="color: var(--accent-orange);">(in progress)</span></span>
+              <span class="loading-dots"><span></span><span></span><span></span></span>
+            </div>
+            <div class="steps-list" data-steps-list></div>
+          </div>
+          <div class="answer-content" data-answer-content style="display: none;"></div>
+        </div>
+      `;
+      return div;
+    }
+    
+    // Track the current in-progress step for each message
+    const messageInProgressSteps = new WeakMap();
+    
+    function handleStreamEvent(eventData, messageElement) {
+      const stepsList = messageElement.querySelector('[data-steps-list]');
+      const stepCount = messageElement.querySelector('[data-step-count]');
+      const answerContent = messageElement.querySelector('[data-answer-content]');
+      const latestStep = messageElement.querySelector('[data-latest-step]');
+      const latestStepText = messageElement.querySelector('[data-latest-step-text]');
+      
+      // Helper to move in-progress step to completed list
+      function completeCurrentStep() {
+        const inProgressStep = messageInProgressSteps.get(messageElement);
+        if (inProgressStep) {
+          const stepEl = createStepElement(inProgressStep);
+          stepsList.appendChild(stepEl);
+          messageInProgressSteps.delete(messageElement);
+          
+          // Update step count
+          const count = stepsList.children.length;
+          stepCount.textContent = `${count} step${count !== 1 ? 's' : ''}`;
+        }
+      }
+      
+      // Skip 'done' event - it's just a completion signal
+      if (eventData.type === 'done') {
+        // Complete any remaining in-progress step
+        completeCurrentStep();
+        
+        // Hide the loading indicator when done
+        if (latestStep) {
+          latestStep.style.display = 'none';
+        }
+        return;
+      }
+      
+      if (eventData.type === 'step') {
+        const step = eventData.data;
+        
+        // If this is an "answer" type step, it's the final step - complete previous and add this
+        if (step.type === 'answer') {
+          completeCurrentStep();
+          const stepEl = createStepElement(step);
+          stepsList.appendChild(stepEl);
+          
+          // Update step count
+          const count = stepsList.children.length;
+          stepCount.textContent = `${count} step${count !== 1 ? 's' : ''}`;
+          
+          // Hide the in-progress indicator
+          if (latestStep) {
+            latestStep.style.display = 'none';
+          }
+        } else {
+          // Complete any previous in-progress step first
+          completeCurrentStep();
+          
+          // Set this step as in-progress
+          messageInProgressSteps.set(messageElement, step);
+          
+          // Update latest step text to show in-progress step
+          if (latestStepText) {
+            const summaryText = step.summary.length > 40 
+              ? step.summary.substring(0, 40) + '...' 
+              : step.summary;
+            latestStepText.innerHTML = `<strong>${escapeHtml(step.name)}</strong> <span style="color: var(--accent-orange);">(in progress)</span>`;
+          }
+        }
+        
+        // Scroll to bottom
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        
+      } else if (eventData.type === 'answer') {
+        // Complete any remaining in-progress step
+        completeCurrentStep();
+        
+        const answer = eventData.data.answer;
+        const widgets = eventData.data.calculation_widgets || [];
+        
+        // Render calculation widgets before the answer
+        const messageContent = messageElement.querySelector('.message-content');
+        if (widgets.length > 0 && messageContent) {
+          renderCalculationWidgets(widgets, messageContent);
+        }
+        
+        answerContent.style.display = 'block';
+        answerContent.innerHTML = formatAnswer(answer);
+        
+        // Hide the loading indicator
+        if (latestStep) {
+          latestStep.style.display = 'none';
+        }
+        
+        // Scroll to bottom
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        
+      } else if (eventData.type === 'error') {
+        // Complete any remaining in-progress step
+        completeCurrentStep();
+        
+        answerContent.style.display = 'block';
+        answerContent.style.color = 'var(--accent-red)';
+        answerContent.innerHTML = `Error: ${escapeHtml(eventData.data.error || eventData.data.details || 'Unknown error')}`;
+        
+        // Hide the loading indicator
+        if (latestStep) {
+          latestStep.style.display = 'none';
+        }
+        
+        // Scroll to bottom
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+    }
+    
+    function createStepElement(step) {
+      const div = document.createElement('div');
+      div.className = `step ${step.type}`;
+      div.onclick = function(e) { toggleStepDetails(this, e); };
+      div.innerHTML = `
+        <div class="step-indicator">${stepIcons[step.type] || '•'}</div>
+        <div class="step-content">
+          <div class="step-name">${escapeHtml(step.name)}</div>
+          <div class="step-summary">${escapeHtml(step.summary)}</div>
+        </div>
+        <span class="step-expand-icon">▼</span>
+        <div class="step-details">
+          <div class="step-details-content">${escapeHtml(JSON.stringify(step.details, null, 2))}</div>
+        </div>
+      `;
+      return div;
+    }
+
+    // ========== Calculation Widget Functions ==========
+    
+    function toggleCalcWidget(header) {
+      const widget = header.closest('.calc-widget');
+      widget.classList.toggle('expanded');
+    }
+
+    function switchCalcTab(tab, widgetId) {
+      const widget = document.getElementById(widgetId);
+      if (!widget) return;
+      
+      // Deactivate all tabs
+      widget.querySelectorAll('.calc-tab').forEach(t => t.classList.remove('active'));
+      widget.querySelectorAll('.calc-tab-content').forEach(c => c.classList.remove('active'));
+      
+      // Activate clicked tab
+      tab.classList.add('active');
+      const tabName = tab.dataset.tab;
+      widget.querySelector(`[data-tab-content="${tabName}"]`)?.classList.add('active');
+    }
+
+    function createCalculationWidget(widgetData, isIntermediate = false) {
+      const widgetId = 'calc-widget-' + Math.random().toString(36).substring(2, 9);
+      
+      if (widgetData.type === 'calculation') {
+        return createSingleCalcWidget(widgetData, widgetId);
+      } else if (widgetData.type === 'comparison') {
+        return createComparisonWidget(widgetData, widgetId);
+      } else if (widgetData.type === 'data') {
+        return createDataWidget(widgetData, widgetId, isIntermediate);
+      }
+      
+      return '';
+    }
+
+    function createDataWidget(data, widgetId, isIntermediate = false) {
+      const gamesData = data.games_data || [];
+      const totalCount = data.total_count || gamesData.length;
+      const returnedCount = data.returned_count || gamesData.length;
+      
+      // For intermediate widgets, show a compact collapsed version
+      if (isIntermediate) {
+        return `
+          <div class="calc-widget calc-widget-intermediate" id="${widgetId}">
+            <div class="calc-widget-header calc-widget-header-compact" onclick="toggleCalcWidget(this)">
+              <div class="calc-widget-title">
+                <div class="calc-widget-icon-small">📊</div>
+                <div class="calc-widget-compact-text">
+                  <span class="calc-widget-compact-desc">${escapeHtml(data.description || 'Game Data')}</span>
+                  <span class="calc-widget-compact-result">${totalCount.toLocaleString()} games</span>
+                </div>
+              </div>
+              <div class="calc-widget-expand calc-widget-expand-small">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+            </div>
+            
+            <div class="calc-widget-summary" style="display: none;">
+              <div class="calc-summary-chip">
+                <span class="calc-summary-chip-label">Total Found:</span>
+                <span class="calc-summary-chip-value">${totalCount.toLocaleString()}</span>
+              </div>
+              <div class="calc-summary-chip">
+                <span class="calc-summary-chip-label">Retrieved:</span>
+                <span class="calc-summary-chip-value">${returnedCount}</span>
+              </div>
+            </div>
+            
+            <div class="calc-widget-details">
+              <div class="calc-tabs">
+                <div class="calc-tab active" data-tab="data" onclick="switchCalcTab(this, '${widgetId}')">Game Data (${gamesData.length})</div>
+              </div>
+              
+              <div class="calc-tab-content active" data-tab-content="data">
+                <div class="calc-table-container">
+                  <div class="calc-table-wrapper">
+                    <table class="calc-data-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Game</th>
+                          <th>Metacritic</th>
+                          <th>Rating</th>
+                          <th>Released</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${gamesData.slice(0, 40).map((game, idx) => `
+                          <tr>
+                            <td>${idx + 1}</td>
+                            <td class="game-name" title="${escapeHtml(game.name)}">${escapeHtml(game.name)}</td>
+                            <td class="score-cell ${game.metacritic ? 'highlight' : ''}">${game.metacritic ?? 'N/A'}</td>
+                            <td class="score-cell">${game.rating ?? 'N/A'}</td>
+                            <td>${game.released || 'N/A'}</td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="calc-table-footer">
+                    Showing ${Math.min(gamesData.length, 40)} of ${gamesData.length} retrieved games (${totalCount.toLocaleString()} total in database)
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Full widget for final/primary data displays
+      // Generate games table
+      let tableRows = '';
+      gamesData.slice(0, 40).forEach((game, idx) => {
+        tableRows += `
+          <tr>
+            <td>${idx + 1}</td>
+            <td class="game-name" title="${escapeHtml(game.name)}">${escapeHtml(game.name)}</td>
+            <td class="score-cell ${game.metacritic ? 'highlight' : ''}">${game.metacritic ?? 'N/A'}</td>
+            <td class="score-cell">${game.rating ?? 'N/A'}</td>
+            <td>${game.released || 'N/A'}</td>
+          </tr>
+        `;
+      });
+
+      // Calculate summary stats from available data
+      const metacriticScores = gamesData.map(g => g.metacritic).filter(s => s != null);
+      const ratings = gamesData.map(g => g.rating).filter(r => r != null);
+      const avgMetacritic = metacriticScores.length > 0 
+        ? (metacriticScores.reduce((a, b) => a + b, 0) / metacriticScores.length).toFixed(1) 
+        : 'N/A';
+      const avgRating = ratings.length > 0 
+        ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2) 
+        : 'N/A';
+
+      return `
+        <div class="calc-widget" id="${widgetId}">
+          <div class="calc-widget-header" onclick="toggleCalcWidget(this)">
+            <div class="calc-widget-title">
+              <div class="calc-widget-icon">📊</div>
+              <div>
+                <div class="calc-widget-label">Data Retrieved</div>
+                <div class="calc-widget-operation">${escapeHtml(data.description || 'Game Data')}</div>
+              </div>
+            </div>
+            <div class="calc-widget-result">
+              <span class="calc-widget-value">${totalCount.toLocaleString()} games</span>
+              <div class="calc-widget-expand">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+            </div>
+          </div>
+          
+          <div class="calc-widget-summary">
+            <div class="calc-summary-chip">
+              <span class="calc-summary-chip-label">Total Found:</span>
+              <span class="calc-summary-chip-value">${totalCount.toLocaleString()}</span>
+            </div>
+            <div class="calc-summary-chip">
+              <span class="calc-summary-chip-label">Retrieved:</span>
+              <span class="calc-summary-chip-value">${returnedCount}</span>
+            </div>
+            ${avgMetacritic !== 'N/A' ? `
+            <div class="calc-summary-chip">
+              <span class="calc-summary-chip-label">Avg Metacritic:</span>
+              <span class="calc-summary-chip-value">${avgMetacritic}</span>
+            </div>
+            ` : ''}
+            ${avgRating !== 'N/A' ? `
+            <div class="calc-summary-chip">
+              <span class="calc-summary-chip-label">Avg Rating:</span>
+              <span class="calc-summary-chip-value">${avgRating}</span>
+            </div>
+            ` : ''}
+          </div>
+          
+          <div class="calc-widget-details">
+            <div class="calc-tabs">
+              <div class="calc-tab active" data-tab="data" onclick="switchCalcTab(this, '${widgetId}')">Game Data (${gamesData.length})</div>
+            </div>
+            
+            <div class="calc-tab-content active" data-tab-content="data">
+              <div class="calc-table-container">
+                <div class="calc-table-wrapper">
+                  <table class="calc-data-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Game</th>
+                        <th>Metacritic</th>
+                        <th>Rating</th>
+                        <th>Released</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${tableRows}
+                    </tbody>
+                  </table>
+                </div>
+                <div class="calc-table-footer">
+                  Showing ${Math.min(gamesData.length, 40)} of ${gamesData.length} retrieved games (${totalCount.toLocaleString()} total in database)
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function createSingleCalcWidget(data, widgetId) {
+      const operationLabels = {
+        average: 'Average',
+        sum: 'Sum',
+        count: 'Count',
+        min: 'Minimum',
+        max: 'Maximum'
+      };
+      
+      const operationIcons = {
+        average: '📊',
+        sum: '➕',
+        count: '#️⃣',
+        min: '⬇️',
+        max: '⬆️'
+      };
+
+      const opLabel = operationLabels[data.operation] || data.operation;
+      const opIcon = operationIcons[data.operation] || '🔢';
+      const fieldLabel = data.field.charAt(0).toUpperCase() + data.field.slice(1);
+      
+      // Calculate summary stats
+      const values = data.input_values || [];
+      const sum = values.reduce((a, b) => a + b, 0);
+      const count = values.length;
+      
+      // Generate calculation steps based on operation
+      let calcSteps = '';
+      if (data.operation === 'average') {
+        calcSteps = `
+          <div class="calc-step">
+            <span class="calc-step-num">1</span>
+            <span class="calc-step-text">Collect ${fieldLabel} values from ${count} games</span>
+          </div>
+          <div class="calc-step">
+            <span class="calc-step-num">2</span>
+            <span class="calc-step-text">Sum all values</span>
+            <span class="calc-step-value">${sum.toLocaleString()}</span>
+          </div>
+          <div class="calc-step">
+            <span class="calc-step-num">3</span>
+            <span class="calc-step-text">Divide by count (${sum} ÷ ${count})</span>
+            <span class="calc-step-value">${data.result}</span>
+          </div>
+        `;
+      } else if (data.operation === 'sum') {
+        calcSteps = `
+          <div class="calc-step">
+            <span class="calc-step-num">1</span>
+            <span class="calc-step-text">Collect ${fieldLabel} values from ${count} games</span>
+          </div>
+          <div class="calc-step">
+            <span class="calc-step-num">2</span>
+            <span class="calc-step-text">Add all values together</span>
+            <span class="calc-step-value">${data.result.toLocaleString()}</span>
+          </div>
+        `;
+      } else if (data.operation === 'min' || data.operation === 'max') {
+        calcSteps = `
+          <div class="calc-step">
+            <span class="calc-step-num">1</span>
+            <span class="calc-step-text">Collect ${fieldLabel} values from ${count} games</span>
+          </div>
+          <div class="calc-step">
+            <span class="calc-step-num">2</span>
+            <span class="calc-step-text">Find ${data.operation === 'min' ? 'minimum' : 'maximum'} value</span>
+            <span class="calc-step-value">${data.result}</span>
+          </div>
+        `;
+      } else {
+        calcSteps = `
+          <div class="calc-step">
+            <span class="calc-step-num">1</span>
+            <span class="calc-step-text">${data.explanation}</span>
+            <span class="calc-step-value">${data.result}</span>
+          </div>
+        `;
+      }
+
+      // Generate games table
+      const gamesData = data.games_data || [];
+      let tableRows = '';
+      gamesData.slice(0, 40).forEach((game, idx) => {
+        const scoreValue = game[data.field];
+        tableRows += `
+          <tr>
+            <td>${idx + 1}</td>
+            <td class="game-name" title="${escapeHtml(game.name)}">${escapeHtml(game.name)}</td>
+            <td class="score-cell highlight">${scoreValue ?? 'N/A'}</td>
+            ${data.field !== 'metacritic' ? `<td class="score-cell">${game.metacritic ?? 'N/A'}</td>` : ''}
+            ${data.field !== 'rating' ? `<td class="score-cell">${game.rating ?? 'N/A'}</td>` : ''}
+            <td>${game.released || 'N/A'}</td>
+          </tr>
+        `;
+      });
+
+      // Show only first 20 values in the values list
+      const displayValues = values.slice(0, 20);
+      const valuesHtml = displayValues.map(v => `<span class="calc-value-item">${v}</span>`).join('');
+      const moreValuesText = values.length > 20 ? `<span class="calc-value-item">+${values.length - 20} more</span>` : '';
+
+      return `
+        <div class="calc-widget" id="${widgetId}">
+          <div class="calc-widget-header" onclick="toggleCalcWidget(this)">
+            <div class="calc-widget-title">
+              <div class="calc-widget-icon">${opIcon}</div>
+              <div>
+                <div class="calc-widget-label">Calculation Result</div>
+                <div class="calc-widget-operation">${opLabel} of ${fieldLabel}</div>
+              </div>
+            </div>
+            <div class="calc-widget-result">
+              <span class="calc-widget-value">${typeof data.result === 'number' ? data.result.toLocaleString() : data.result}</span>
+              <div class="calc-widget-expand">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+            </div>
+          </div>
+          
+          <div class="calc-widget-summary">
+            <div class="calc-summary-chip">
+              <span class="calc-summary-chip-label">Games:</span>
+              <span class="calc-summary-chip-value">${count}</span>
+            </div>
+            ${data.operation === 'average' ? `
+            <div class="calc-summary-chip">
+              <span class="calc-summary-chip-label">Sum:</span>
+              <span class="calc-summary-chip-value">${sum.toLocaleString()}</span>
+            </div>
+            ` : ''}
+            <div class="calc-summary-chip">
+              <span class="calc-summary-chip-label">Field:</span>
+              <span class="calc-summary-chip-value">${fieldLabel}</span>
+            </div>
+          </div>
+          
+          <div class="calc-widget-details">
+            <div class="calc-tabs">
+              <div class="calc-tab active" data-tab="breakdown" onclick="switchCalcTab(this, '${widgetId}')">Calculation</div>
+              <div class="calc-tab" data-tab="data" onclick="switchCalcTab(this, '${widgetId}')">Game Data (${gamesData.length})</div>
+            </div>
+            
+            <div class="calc-tab-content active" data-tab-content="breakdown">
+              <div class="calc-breakdown">
+                <div class="calc-formula">
+                  <div class="calc-formula-label">Formula</div>
+                  <div class="calc-formula-code">${escapeHtml(data.formula || `${data.operation}([${count} values])`)}</div>
+                </div>
+                
+                <div class="calc-steps">
+                  ${calcSteps}
+                </div>
+                
+                <div class="calc-values">
+                  <div class="calc-values-label">Input Values</div>
+                  <div class="calc-values-list">
+                    ${valuesHtml}
+                    ${moreValuesText}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="calc-tab-content" data-tab-content="data">
+              <div class="calc-table-container">
+                <div class="calc-table-wrapper">
+                  <table class="calc-data-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Game</th>
+                        <th>${fieldLabel}</th>
+                        ${data.field !== 'metacritic' ? '<th>Metacritic</th>' : ''}
+                        ${data.field !== 'rating' ? '<th>Rating</th>' : ''}
+                        <th>Released</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${tableRows}
+                    </tbody>
+                  </table>
+                </div>
+                <div class="calc-table-footer">
+                  Showing ${Math.min(gamesData.length, 40)} of ${gamesData.length} games
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function createComparisonWidget(data, widgetId) {
+      const groups = data.groups || [];
+      const results = data.result || {};
+      
+      // Find winner
+      let winner = '';
+      let highestValue = -Infinity;
+      for (const [group, value] of Object.entries(results)) {
+        if (value > highestValue) {
+          highestValue = value;
+          winner = group;
+        }
+      }
+      
+      // Generate group cards
+      let groupCardsHtml = '';
+      groups.forEach(group => {
+        const value = results[group];
+        const isWinner = group === winner;
+        groupCardsHtml += `
+          <div class="calc-group-card ${isWinner ? 'winner' : ''}">
+            <div class="calc-group-name">${escapeHtml(group)}</div>
+            <div class="calc-group-value">${value?.toLocaleString() ?? 'N/A'}</div>
+            ${isWinner ? '<div class="calc-winner-badge">Winner</div>' : ''}
+          </div>
+        `;
+      });
+      
+      // Generate data tabs for each group
+      let tabsHtml = `<div class="calc-tab active" data-tab="breakdown" onclick="switchCalcTab(this, '${widgetId}')">Comparison</div>`;
+      groups.forEach((group, idx) => {
+        const games = (data.group_games && data.group_games[group]) || [];
+        tabsHtml += `<div class="calc-tab" data-tab="group-${idx}" onclick="switchCalcTab(this, '${widgetId}')">${escapeHtml(group)} (${games.length})</div>`;
+      });
+      
+      // Generate data tables for each group
+      let tabContentsHtml = '';
+      groups.forEach((group, idx) => {
+        const games = (data.group_games && data.group_games[group]) || [];
+        let tableRows = '';
+        games.slice(0, 40).forEach((game, gameIdx) => {
+          tableRows += `
+            <tr>
+              <td>${gameIdx + 1}</td>
+              <td class="game-name" title="${escapeHtml(game.name)}">${escapeHtml(game.name)}</td>
+              <td class="score-cell highlight">${game.metacritic ?? 'N/A'}</td>
+              <td class="score-cell">${game.rating ?? 'N/A'}</td>
+              <td>${game.released || 'N/A'}</td>
+            </tr>
+          `;
+        });
+        
+        tabContentsHtml += `
+          <div class="calc-tab-content" data-tab-content="group-${idx}">
+            <div class="calc-table-container">
+              <div class="calc-table-wrapper">
+                <table class="calc-data-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Game</th>
+                      <th>Metacritic</th>
+                      <th>Rating</th>
+                      <th>Released</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${tableRows}
+                  </tbody>
+                </table>
+              </div>
+              <div class="calc-table-footer">
+                Showing ${Math.min(games.length, 40)} of ${games.length} games
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      return `
+        <div class="calc-widget" id="${widgetId}">
+          <div class="calc-widget-header" onclick="toggleCalcWidget(this)">
+            <div class="calc-widget-title">
+              <div class="calc-widget-icon">⚖️</div>
+              <div>
+                <div class="calc-widget-label">Comparison Result</div>
+                <div class="calc-widget-operation">${groups.join(' vs ')}</div>
+              </div>
+            </div>
+            <div class="calc-widget-result">
+              <span class="calc-widget-value">${escapeHtml(winner)}</span>
+              <div class="calc-widget-expand">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+            </div>
+          </div>
+          
+          <div class="calc-widget-summary">
+            ${groups.map(group => `
+              <div class="calc-summary-chip">
+                <span class="calc-summary-chip-label">${escapeHtml(group)}:</span>
+                <span class="calc-summary-chip-value">${results[group]?.toLocaleString() ?? 'N/A'}</span>
+              </div>
+            `).join('')}
+          </div>
+          
+          <div class="calc-widget-details">
+            <div class="calc-tabs">
+              ${tabsHtml}
+            </div>
+            
+            <div class="calc-tab-content active" data-tab-content="breakdown">
+              <div class="calc-breakdown">
+                <div class="calc-formula">
+                  <div class="calc-formula-label">Formula</div>
+                  <div class="calc-formula-code">${escapeHtml(data.formula || 'compare_averages(...)')}</div>
+                </div>
+                
+                <div class="calc-comparison-groups">
+                  ${groupCardsHtml}
+                </div>
+                
+                <p style="color: var(--text-muted); font-size: 0.8125rem; text-align: center; margin-top: 1rem;">
+                  ${escapeHtml(data.explanation || '')}
+                </p>
+              </div>
+            </div>
+            
+            ${tabContentsHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCalculationWidgets(widgets, container) {
+      if (!widgets || widgets.length === 0) return;
+      
+      let widgetsHtml = '';
+      const lastIndex = widgets.length - 1;
+      
+      widgets.forEach((widget, index) => {
+        // Only the last widget is shown fully; intermediate ones (data fetches) are compact
+        const isIntermediate = index < lastIndex && widget.type === 'data';
+        widgetsHtml += createCalculationWidget(widget, isIntermediate);
+      });
+      
+      const widgetContainer = document.createElement('div');
+      widgetContainer.className = 'calculation-widgets';
+      widgetContainer.innerHTML = widgetsHtml;
+      
+      // Insert before the answer content
+      const answerContent = container.querySelector('.answer-content');
+      if (answerContent) {
+        answerContent.parentNode.insertBefore(widgetContainer, answerContent);
+      } else {
+        container.appendChild(widgetContainer);
+      }
+    }
+
+    // ========== Easter Egg: Cheat Code Quiz ==========
+    
+    const cheatCodeQuestions = [
+      {
+        question: "What is the legendary Konami Code?",
+        hint: "Used in Contra, Gradius, and many more...",
+        options: [
+          "↑ ↑ ↓ ↓ ← → ← → B A",
+          "↑ ↓ ↑ ↓ ← ← → → A B",
+          "← → ↑ ↓ A B A B ↑ ↑"
+        ],
+        correct: 0
+      },
+      {
+        question: "In GTA: San Andreas, what cheat gives health, armor, and $250,000?",
+        hint: "CJ's best friend...",
+        options: [
+          "BAGUVIX",
+          "HESOYAM",
+          "AEZAKMI"
+        ],
+        correct: 1
+      },
+      {
+        question: "What is the Blood Code for Mortal Kombat on Sega Genesis?",
+        hint: "Unlocks the fatalities...",
+        options: [
+          "A B A C A B B",
+          "B A B A C A B",
+          "A C A B B A B"
+        ],
+        correct: 0
+      },
+      {
+        question: "In DOOM, what cheat code activates God Mode?",
+        hint: "Makes you invincible...",
+        options: [
+          "IDKFA",
+          "IDCLIP",
+          "IDDQD"
+        ],
+        correct: 2
+      }
+    ];
+
+    let currentQuizQuestion = 0;
+    let quizAnswers = [];
+    let quizOverlay = null;
+
+    function openCheatCodeQuiz() {
+      currentQuizQuestion = 0;
+      quizAnswers = [];
+      
+      quizOverlay = document.createElement('div');
+      quizOverlay.className = 'quiz-overlay';
+      quizOverlay.innerHTML = createQuizContent();
+      
+      // Close on background click
+      quizOverlay.addEventListener('click', (e) => {
+        if (e.target === quizOverlay) {
+          closeQuiz();
+        }
+      });
+      
+      document.body.appendChild(quizOverlay);
+    }
+
+    function createQuizContent() {
+      const q = cheatCodeQuestions[currentQuizQuestion];
+      const progressDots = cheatCodeQuestions.map((_, idx) => {
+        let dotClass = 'quiz-progress-dot';
+        if (idx < currentQuizQuestion) {
+          dotClass += quizAnswers[idx] === cheatCodeQuestions[idx].correct ? ' correct' : ' wrong';
+        } else if (idx === currentQuizQuestion) {
+          dotClass += ' active';
+        }
+        return `<div class="${dotClass}"></div>`;
+      }).join('');
+
+      return `
+        <div class="quiz-modal" style="position: relative;">
+          <button class="quiz-close" onclick="closeQuiz()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+<div class="quiz-header">
+          <span class="quiz-header-icon">🕹️</span>
+          <div class="quiz-header-text">
+            <h3>CHEAT CODE MASTERY</h3>
+            <p>You found the super secret quiz! Question ${currentQuizQuestion + 1} of ${cheatCodeQuestions.length}</p>
+          </div>
+        </div>
+          <div class="quiz-progress">${progressDots}</div>
+          <div class="quiz-question">
+            <div class="quiz-question-text">${q.question}</div>
+            <div class="quiz-question-hint">${q.hint}</div>
+            <div class="quiz-options">
+              ${q.options.map((opt, idx) => `
+                <div class="quiz-option" onclick="selectQuizOption(${idx})" data-option="${idx}">
+                  <span class="quiz-option-key">${String.fromCharCode(65 + idx)}</span>
+                  <span>${escapeHtml(opt)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div class="quiz-footer">
+            <button class="quiz-btn" id="quizNextBtn" onclick="submitQuizAnswer()" disabled>
+              ${currentQuizQuestion < cheatCodeQuestions.length - 1 ? 'Next →' : 'Finish'}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    let selectedOption = null;
+
+    function selectQuizOption(idx) {
+      selectedOption = idx;
+      const options = quizOverlay.querySelectorAll('.quiz-option');
+      options.forEach((opt, i) => {
+        opt.classList.toggle('selected', i === idx);
+      });
+      document.getElementById('quizNextBtn').disabled = false;
+    }
+
+    function submitQuizAnswer() {
+      if (selectedOption === null) return;
+      
+      const q = cheatCodeQuestions[currentQuizQuestion];
+      const isCorrect = selectedOption === q.correct;
+      quizAnswers.push(selectedOption);
+      
+      // Show correct/wrong feedback
+      const options = quizOverlay.querySelectorAll('.quiz-option');
+      options.forEach((opt, i) => {
+        opt.style.pointerEvents = 'none';
+        if (i === q.correct) {
+          opt.classList.add('correct');
+        } else if (i === selectedOption && !isCorrect) {
+          opt.classList.add('wrong');
+        }
+      });
+      
+      // If wrong answer, shake and immediately go to R.I.P.
+      if (!isCorrect) {
+        quizOverlay.querySelector('.quiz-modal').classList.add('shake');
+        setTimeout(() => {
+          showQuizResult();
+        }, 800);
+        return;
+      }
+      
+      // Move to next question or show result after delay
+      setTimeout(() => {
+        selectedOption = null;
+        currentQuizQuestion++;
+        
+        if (currentQuizQuestion >= cheatCodeQuestions.length) {
+          showQuizResult();
+        } else {
+          quizOverlay.innerHTML = createQuizContent();
+        }
+      }, 800);
+    }
+
+    function showQuizResult() {
+      const allCorrect = quizAnswers.every((ans, idx) => ans === cheatCodeQuestions[idx].correct);
+      
+      if (allCorrect) {
+        // SUCCESS! Show congratulations and DOOM guy at the same time
+        quizOverlay.innerHTML = `
+          <div class="quiz-modal">
+            <div class="quiz-result success">
+              <span class="quiz-result-icon">🏆</span>
+              <h3>LEGENDARY GAMER!</h3>
+              <p>You know your cheat codes. The old masters salute you.</p>
+            </div>
+          </div>
+        `;
+        
+        // Spawn DOOM guy immediately while congratulations is showing
+        spawnDoomGuy();
+        
+        // Close the modal after DOOM guy finishes running
+        setTimeout(() => {
+          closeQuiz();
+        }, 3000);
+      } else {
+        // FAILURE! Show R.I.P.
+        const correctCount = quizAnswers.filter((ans, idx) => ans === cheatCodeQuestions[idx].correct).length;
+        const failMessage = correctCount === 0 
+          ? "First question and you're already dead. F." 
+          : `You survived ${correctCount} question${correctCount > 1 ? 's' : ''}. The arcade gods are disappointed.`;
+        quizOverlay.innerHTML = `
+          <div class="quiz-modal">
+            <div class="quiz-result failure">
+              <span class="quiz-result-icon">💀</span>
+              <h3>R.I.P.</h3>
+              <p>${failMessage}</p>
+            </div>
+          </div>
+        `;
+        
+        setTimeout(() => {
+          closeQuiz();
+        }, 2000);
+      }
+    }
+
+    function closeQuiz() {
+      if (quizOverlay) {
+        quizOverlay.remove();
+        quizOverlay = null;
+      }
+    }
+
+    function spawnDoomGuy() {
+      // Create DOOM Slayer running animation
+      const container = document.createElement('div');
+      container.className = 'doomguy-container';
+      
+      // Using the actual DOOM Slayer image
+      container.innerHTML = `
+        <img class="doomguy" src="https://static.wikia.nocookie.net/doom/images/5/53/Doomslayer93.png" alt="DOOM Slayer" />
+      `;
+      
+      document.body.appendChild(container);
+      
+      // Start the running animation
+      requestAnimationFrame(() => {
+        container.classList.add('running');
+      });
+      
+      // Remove after animation completes
+      setTimeout(() => {
+        container.remove();
+      }, 3000);
+    }
+
+    function showRipScreen() {
+      const container = document.createElement('div');
+      container.className = 'rip-container';
+      container.innerHTML = `
+        <span class="rip-skull">💀</span>
+        <div class="rip-text">R.I.P.</div>
+      `;
+      
+      document.body.appendChild(container);
+      
+      // Remove after 2 seconds
+      setTimeout(() => {
+        container.style.animation = 'fadeOut 0.5s ease-out forwards';
+        setTimeout(() => container.remove(), 500);
+      }, 2000);
+    }
+
+    // Add fadeOut animation
+    const styleSheet = document.createElement('style');
+    styleSheet.textContent = `
+      @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+    `;
+    document.head.appendChild(styleSheet);
+  </script>
+</body>
+</html>
+

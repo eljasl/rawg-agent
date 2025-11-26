@@ -1,0 +1,12 @@
+name = "rawg-agent"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# API keys are stored securely as Cloudflare secrets (not in this file!)
+# To add secrets, run:
+#   npx wrangler secret put RAWG_API_KEY
+#   npx wrangler secret put GEMINI_API_KEY
+
+# For production deployment, static assets will be served from this directory
+[assets]
+directory = "./public"
